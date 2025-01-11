@@ -9,8 +9,7 @@ Description: Implements functions to simulate multi-attribute decision making us
     information search, belief updating, and choice behavior in multi-attribute decisions.
 License: MIT + file LICENSE
 Imports:
-    stats,
-    MASS
+    stats
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
