@@ -13,25 +13,29 @@ knitr::opts_chunk$set(
 )
 ```
 
-# masc
+# masc: Multi-Attribute Search and Choice Model in R
 
 <!-- badges: start -->
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
 ## Overview
 
-The `masc` package implements the Multi-Attribute Search and Choice (MASC) model, a cognitive model of multi-attribute decision making. Based on the work by Gluth, Deakin, & Rieskamp (2024), this package provides tools for simulating how people make decisions when comparing options with multiple attributes.
+The `masc` package implements the Multi-Attribute Search and Choice (MASC) model, a hierarchical Bayesian framework for understanding how people make decisions between options with multiple attributes. Based on the work by Gluth, Deakin, & Rieskamp (2024), this package simulates:
+
+- Information search patterns in multi-attribute decisions
+- Belief updating about attribute values
+- Choice dynamics and decision termination
+- The interplay between attention and valuation
 
 ## Installation
 
-You can install the development version of `masc` from [GitHub](https://github.com/) with:
-
 ```r
-# install.packages("devtools")
+# Install development version from GitHub
 devtools::install_github("kiantefernandez/masc")
 ```
 
-## Usage
+## Basic Usage
 
 The primary function `rMASC()` allows you to simulate the MASC model:
 
@@ -65,6 +69,103 @@ results <- rMASC(
 )
 ```
 
+### Simple Decision Simulation
+
+```r
+library(masc)
+
+# Simulate 100 decisions between two options with three attributes each
+results <- rMASC(
+  n = 100,
+  w = c(0.5, 0.3, 0.2)  # Attribute weights
+)
+
+# Examine basic results
+head(results$results)
+```
+
+### Custom Decision Scenarios
+
+```r
+# Create a choice scenario between two smartphones
+phone_data <- data.frame(
+  # Option 1: High-end phone
+  opt1_att1 = c(4.5),  # Screen size (inches)
+  opt1_att2 = c(5000), # Battery (mAh)
+  opt1_att3 = c(256),  # Storage (GB)
+  
+  # Option 2: Mid-range phone
+  opt2_att1 = c(4.2),  
+  opt2_att2 = c(4000),
+  opt2_att3 = c(128)
+)
+
+# Run model with standardized values and specific parameters
+phone_choice <- rMASC(
+  data = scale(phone_data),  # Standardize attributes
+  w = c(0.4, 0.4, 0.2),     # Equal weight to screen and battery
+  alpha = 5,                 # More deterministic search
+  sigma = 0.5               # Lower sampling noise
+)
+```
+
+### Analyzing Search Patterns
+
+```r
+# Simulate decisions with different attribute importance
+high_dispersion <- rMASC(
+  n = 50,
+  w = c(0.8, 0.1, 0.1),  # One dominant attribute
+  alpha = 3
+)
+
+low_dispersion <- rMASC(
+  n = 50,
+  w = c(0.4, 0.3, 0.3),  # More equal weights
+  alpha = 3
+)
+
+# Compare fixation patterns
+mean(high_dispersion$results$rt)     # Should be lower
+mean(low_dispersion$results$rt)      # Should be higher
+```
+
+## Key Features
+
+The MASC model captures several key empirical phenomena:
+
+1. **Choice Consistency**: More consistent choices when value differences are large
+```r
+# Value difference affects choice consistency
+easy_choice <- rMASC(
+  data = data.frame(
+    opt1_att1 = 2, opt1_att2 = 2, opt1_att3 = 2,
+    opt2_att1 = 0, opt2_att2 = 0, opt2_att3 = 0
+  ),
+  w = c(0.4, 0.3, 0.3)
+)
+```
+
+2. **Search Efficiency**: Attention allocation follows attribute importance
+```r
+# More important attributes are sampled first
+results <- rMASC(
+  n = 1,
+  w = c(0.7, 0.2, 0.1),
+  alpha = 5
+)
+```
+
+3. **Attraction Search Effect**: Tendency to keep sampling from promising options
+```r
+# Higher alpha increases attraction search effect
+results <- rMASC(
+  n = 1,
+  alpha = 8,  # Strong attraction to promising options
+  w = c(0.4, 0.3, 0.3)
+)
+```
+
 ## Function Parameters
 
 The `rMASC()` function accepts the following parameters:
@@ -93,10 +194,6 @@ The `rMASC()` function returns a list containing:
 ## Reference
 
 Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice. https://doi.org/10.31234/osf.io/3qzak
-
-## Contributing
-
-Contributions are welcome! Please file issues or submit pull requests on the [GitHub repository](https://github.com/kiantefernandez/masc).
 
 ## License
 
