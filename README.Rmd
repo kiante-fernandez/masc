@@ -26,14 +26,14 @@ The `masc` package implements the Multi-Attribute Search and Choice (MASC) model
 
 You can install the development version of `masc` from [GitHub](https://github.com/) with:
 
-``` r
+```r
 # install.packages("devtools")
 devtools::install_github("kiantefernandez/masc")
 ```
 
 ## Usage
 
-The primary function `rMASC()` allows you to simulate the masc:
+The primary function `rMASC()` allows you to simulate the MASC model:
 
 ### Basic Example: Random Trials
 
@@ -65,20 +65,34 @@ results <- rMASC(
 )
 ```
 
-## Key Features
+## Function Parameters
 
-- Flexible input: random generation or custom attribute values
-- Customizable parameters including:
-  - Number of options
-  - Number of attributes
-  - Attribute weights
-  - Sampling noise
-  - Search sensitivity
-  - Decision thresholds
+The `rMASC()` function accepts the following parameters:
+
+- `data`: Optional data frame with trial-wise attribute values
+- `n`: Number of trials to generate when `data` is NULL (default: 1)
+- `n_options`: Number of choice options (default: 2)
+- `n_attributes`: Number of attributes per option (default: 3)
+- `w`: Attribute weights (if NULL, randomly generated)
+- `sigma`: Standard deviation of sampling noise (default: 1)
+- `alpha`: Search sensitivity parameter (default: 3)
+- `delta`: Decision threshold increase per fixation (default: 0.01)
+- `theta`: Initial decision threshold (default: 0.01)
+- `lambda`: Precision of prior beliefs about attributes (default: 1)
+- `max_steps`: Maximum number of fixations allowed (default: 100)
+
+## Output
+
+The `rMASC()` function returns a list containing:
+
+- `results`: Data frame with trial-by-trial results
+- `weights`: Vector of attribute weights used
+- `parameters`: List of model parameters used
+- `raw`: List containing detailed raw data for each trial
 
 ## Reference
 
-Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice. https://doi.org/10.31234/osf.io/3qzak
 
 ## Contributing
 
