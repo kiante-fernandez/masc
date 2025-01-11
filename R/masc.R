@@ -131,7 +131,6 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'       \item best_option: Option with highest weighted value
 #'       \item correct: Whether response matches best_option
 #'       \item rt: Number of fixations taken
-#'       \item mean_value: Mean value across options
 #'       \item value_difference: Difference between best and worst option values
 #'       \item prop_fix_opt1, prop_fix_opt2: Proportion of fixations to each option
 #'     }
@@ -330,7 +329,6 @@ rMASC <- function(data = NULL,
       best_option = trial$best_option,
       correct = trial$correct,
       rt = trial$rt,
-      mean_value = mean(trial$opt_values),
       value_difference = diff(range(trial$opt_values)),
       prop_fix_opt1 = trial$prop_fix_opt[1],
       prop_fix_opt2 = trial$prop_fix_opt[2]

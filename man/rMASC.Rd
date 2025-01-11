@@ -61,7 +61,6 @@ A list containing:
 \item best_option: Option with highest weighted value
 \item correct: Whether response matches best_option
 \item rt: Number of fixations taken
-\item mean_value: Mean value across options
 \item value_difference: Difference between best and worst option values
 \item prop_fix_opt1, prop_fix_opt2: Proportion of fixations to each option
 }
