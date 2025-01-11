@@ -1,11 +1,3 @@
-#' @title Multi-Attribute Search and Choice (MASC) Model
-#' @description
-#' Implements the MASC model of multi-attribute decision making.
-#'
-#' @docType package
-#' @name masc
-NULL
-
 #' Generate Non-dominated Attribute Values
 #'
 #' @description
