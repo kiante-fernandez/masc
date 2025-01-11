@@ -1,0 +1,89 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# masc
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+## Overview
+
+The `masc` package implements the Multi-Attribute Search and Choice (MASC) model, a cognitive model of multi-attribute decision making. Based on the work by Gluth, Deakin, & Rieskamp (2024), this package provides tools for simulating how people make decisions when comparing options with multiple attributes.
+
+## Installation
+
+You can install the development version of `masc` from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("kiantefernandez/masc")
+```
+
+## Usage
+
+The primary function `rMASC()` allows you to simulate the masc:
+
+### Basic Example: Random Trials
+
+```r
+library(masc)
+
+# Generate 5 random trials
+results <- rMASC(n = 5)
+print(results$results)
+```
+
+### Custom Attribute Values
+
+```r
+# Create a data frame with custom attribute values
+trial_data <- data.frame(
+  opt1_att1 = c(4.5, 4.2, 4.8),  # Option 1, Attribute 1 values
+  opt1_att2 = c(3.2, 3.5, 3.1),  # Option 1, Attribute 2 values
+  opt1_att3 = c(2.8, 2.9, 2.7),  # Option 1, Attribute 3 values
+  opt2_att1 = c(3.8, 3.9, 3.7),  # Option 2, Attribute 1 values
+  opt2_att2 = c(4.1, 4.0, 4.2),  # Option 2, Attribute 2 values
+  opt2_att3 = c(3.1, 3.3, 3.0)   # Option 2, Attribute 3 values
+)
+
+# Run model with custom attribute values and weights
+results <- rMASC(
+  data = trial_data,
+  w = c(0.5, 0.3, 0.2)  # custom attribute weights
+)
+```
+
+## Key Features
+
+- Flexible input: random generation or custom attribute values
+- Customizable parameters including:
+  - Number of options
+  - Number of attributes
+  - Attribute weights
+  - Sampling noise
+  - Search sensitivity
+  - Decision thresholds
+
+## Reference
+
+Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+
+## Contributing
+
+Contributions are welcome! Please file issues or submit pull requests on the [GitHub repository](https://github.com/kiantefernandez/masc).
+
+## License
+
+This package is released under the MIT License.
