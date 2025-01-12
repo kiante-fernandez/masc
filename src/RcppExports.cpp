@@ -11,25 +11,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// MASC_SearchRule_myopic_cpp
-NumericVector MASC_SearchRule_myopic_cpp(int n, int m, NumericVector w, NumericVector w2, NumericVector sp, double thresh, double alpha, NumericMatrix prec, NumericMatrix mu);
-RcppExport SEXP _masc_MASC_SearchRule_myopic_cpp(SEXP nSEXP, SEXP mSEXP, SEXP wSEXP, SEXP w2SEXP, SEXP spSEXP, SEXP threshSEXP, SEXP alphaSEXP, SEXP precSEXP, SEXP muSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w2(w2SEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type sp(spSEXP);
-    Rcpp::traits::input_parameter< double >::type thresh(threshSEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type prec(precSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type mu(muSEXP);
-    rcpp_result_gen = Rcpp::wrap(MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha, prec, mu));
-    return rcpp_result_gen;
-END_RCPP
-}
 // generate_attributes_cpp
 NumericMatrix generate_attributes_cpp(int n, int m, double lambda);
 RcppExport SEXP _masc_generate_attributes_cpp(SEXP nSEXP, SEXP mSEXP, SEXP lambdaSEXP) {
@@ -63,11 +44,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// MASC_SearchRule_myopic_cpp
+NumericVector MASC_SearchRule_myopic_cpp(int n, int m, NumericVector w, NumericVector w2, NumericVector sp, double thresh, double alpha, NumericMatrix prec, NumericMatrix mu);
+RcppExport SEXP _masc_MASC_SearchRule_myopic_cpp(SEXP nSEXP, SEXP mSEXP, SEXP wSEXP, SEXP w2SEXP, SEXP spSEXP, SEXP threshSEXP, SEXP alphaSEXP, SEXP precSEXP, SEXP muSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w2(w2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sp(spSEXP);
+    Rcpp::traits::input_parameter< double >::type thresh(threshSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type prec(precSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type mu(muSEXP);
+    rcpp_result_gen = Rcpp::wrap(MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha, prec, mu));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_masc_MASC_SearchRule_myopic_cpp", (DL_FUNC) &_masc_MASC_SearchRule_myopic_cpp, 9},
     {"_masc_generate_attributes_cpp", (DL_FUNC) &_masc_generate_attributes_cpp, 3},
     {"_masc_rMASC_sampling_cpp", (DL_FUNC) &_masc_rMASC_sampling_cpp, 10},
+    {"_masc_MASC_SearchRule_myopic_cpp", (DL_FUNC) &_masc_MASC_SearchRule_myopic_cpp, 9},
     {NULL, NULL, 0}
 };
 
