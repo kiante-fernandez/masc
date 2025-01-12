@@ -223,16 +223,21 @@ rMASC <- function(data = NULL,
 
   # Convert results to tidy data frame
   results_df <- do.call(rbind, lapply(all_trials, function(trial) {
-    data.frame(
+    # Create base results
+    base_results <- data.frame(
       trial = trial$trial,
       response = trial$response,
       best_option = trial$best_option,
       correct = trial$correct,
-      rt = trial$rt,
-      value_difference = diff(range(trial$opt_values)),
-      prop_fix_opt1 = trial$prop_fix_opt[1],
-      prop_fix_opt2 = trial$prop_fix_opt[2]
+      rt = trial$rt
     )
+
+    # Add proportion fixation columns for each option
+    for(i in 1:n_options) {
+      base_results[[paste0("prop_fix_opt", i)]] <- trial$prop_fix_opt[i]
+    }
+
+    base_results
   }))
 
   # Add original trial data if provided
