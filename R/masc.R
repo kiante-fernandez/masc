@@ -1,11 +1,8 @@
-#' @importFrom stats pnorm qnorm rbeta rmultinom rnorm
-NULL
-
 #' Generate Non-dominated Attribute Values
 #'
 #' @description
 #' Internal function that generates attribute values for options ensuring no option
-#' dominates another (i.e., is better on all attri butes).
+#' dominates another (i.e., is better on all attributes).
 #'
 #' @param n Integer. Number of options.
 #' @param m Integer. Number of attributes per option.
@@ -14,11 +11,7 @@ NULL
 #' @return Matrix of attribute values (n x m).
 #' @keywords internal
 generate_attributes <- function(n, m, lambda) {
-  repeat {
-    x <- matrix(rnorm(n * m), n, m) * sqrt(1/lambda)
-    if(m == 1 || !any(rowSums(sweep(x, 2, apply(x, 2, max), "==")) == m)) break
-  }
-  return(x)
+  generate_attributes_cpp(n, m, lambda)
 }
 
 #' Myopic Search Rule for MASC Model
@@ -41,56 +34,9 @@ generate_attributes <- function(n, m, lambda) {
 #' @return Numeric vector. Probabilities for each possible fixation location.
 #' @keywords internal
 MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
-  # Precompute shared terms
-  new_prec <- sweep(prec, 2, sp, "+")
-  opt_means <- drop(mu %*% w)
-  opt_vars_old <- drop((1/prec) %*% w2)
-
-  # Initialize score matrix
-  myopic_score <- matrix(0, n, m)
-
-  # Calculate myopic score for each option-attribute pair
-  for(i in 1:n) {
-    not_i <- setdiff(1:n, i)
-
-    for(j in 1:m) {
-      # Calculate new option variance
-      if(m > 1) {
-        not_j <- setdiff(1:m, j)
-        opt_var_new <- (1/new_prec[i,j])*w2[j] + sum((1/prec[i,not_j])*w2[not_j])
-      } else {
-        opt_var_new <- (1/new_prec[i,j])*w2[j]
-      }
-
-      # Safe variance calculation
-      var_term <- pmax(opt_var_new + opt_vars_old[not_i], .Machine$double.eps)
-      opt_mean_thresh <- opt_means[not_i] - qnorm(thresh, 0, sqrt(var_term))
-
-      # Calculate threshold
-      if(w[j] > 0) {
-        sample_thresh <- if(m > 1) {
-          (new_prec[i,j]/w[j] * (opt_mean_thresh - sum(mu[i,not_j]*w[not_j])) -
-             prec[i,j]*mu[i,j])/sp[j]
-        } else {
-          (new_prec[i,j]/w[j]*opt_mean_thresh - prec[i,j]*mu[i,j])/sp[j]
-        }
-      } else {
-        sample_thresh <- 0
-      }
-
-      # Update score
-      att_sd <- sqrt(1/prec[i,j])
-      myopic_score[i,j] <- pnorm(mu[i,j], max(sample_thresh), att_sd)
-    }
-  }
-
-  # Handle zero scores and normalize
-  myopic_score[myopic_score == 0] <- .Machine$double.xmin
-  myopic_score <- myopic_score/sum(myopic_score)
-
-  # Apply search sensitivity and return probabilities
-  transition_prob <- exp(alpha*myopic_score)
-  return(as.vector(transition_prob/sum(transition_prob)))
+  # Call C++ implementation
+  result <- MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha, prec, mu)
+  return(result)
 }
 
 #' Multi-Attribute Search and Choice (MASC) Model
@@ -184,8 +130,6 @@ rMASC <- function(data = NULL,
   if (delta <= 0) stop("delta must be positive")
   if (theta <= 0) stop("theta must be positive")
   if (lambda <= 0) stop("lambda must be positive")
-
-
   if(!is.numeric(n) || n < 1 || n != round(n))
     stop("n must be a positive integer")
 
@@ -221,7 +165,6 @@ rMASC <- function(data = NULL,
         expected_cols <- c(expected_cols, sprintf("opt%d_att%d", i, j))
       }
     }
-
     missing_cols <- setdiff(expected_cols, names(data))
     if(length(missing_cols) > 0) {
       stop("Missing columns: ", paste(missing_cols, collapse=", "),
@@ -229,85 +172,42 @@ rMASC <- function(data = NULL,
     }
   }
 
-  # Pre-allocate list for trials
+  # Pre-allocate results
   all_trials <- vector("list", n_trials)
 
   # Process each trial
   for(trial in 1:n_trials) {
     # Get or generate stimulus values
-    if(is.null(data)) {
-      trial_x <- generate_attributes(n_options, n_attributes, lambda)
+    trial_x <- if(is.null(data)) {
+      generate_attributes_cpp(n_options, n_attributes, lambda)
     } else {
-      # Extract and reshape trial data into matrix
-      trial_data <- as.numeric(data[trial, ])
-      trial_x <- matrix(trial_data, nrow=n_options, byrow=TRUE)
+      matrix(as.numeric(data[trial, ]), nrow=n_options, byrow=TRUE)
     }
 
-    # Pre-compute squared weights and sampling precision
-    w2 <- w^2
-    sp <- rep(1/sigma^2, n_attributes)
+    # Run sampling process using C++
+    trial_results <- rMASC_sampling_cpp(
+      trial_x = trial_x,
+      w = w,
+      sigma = sigma,
+      alpha = alpha,
+      delta = delta,
+      theta = theta,
+      lambda = lambda,
+      max_steps = max_steps,
+      n_options = n_options,
+      n_attributes = n_attributes
+    )
 
-    # Initialize belief distributions
-    prec <- matrix(lambda, n_options, n_attributes)
-    mu <- matrix(0, n_options, n_attributes)
-
-    # Initialize trial tracking
-    t <- 0
-    thresh <- theta
-    fix_sequence <- numeric(max_steps)
-
-    # Main decision loop
-    repeat {
-      # Get transition probabilities using myopic search rule
-      trans_mat <- MASC_SearchRule_myopic(n_options, n_attributes, w, w2, sp,
-                                          thresh, alpha, prec, mu)
-      current_fix <- which.max(rmultinom(1, 1, trans_mat))
-      j_fix <- ceiling(current_fix/n_options)
-
-      # Sample and update beliefs
-      current_sample <- trial_x[current_fix] + rnorm(1, 0, sigma)
-      new_prec <- prec[current_fix] + sp[j_fix]
-      mu[current_fix] <- (current_sample*sp[j_fix] +
-                            mu[current_fix]*prec[current_fix])/new_prec
-      prec[current_fix] <- new_prec
-
-      # Update tracking variables
-      t <- t + 1
-      fix_sequence[t] <- current_fix
-      thresh <- thresh + delta
-
-      # Check termination conditions
-      opt_mean <- drop(mu %*% w)
-      opt_var <- drop((1/prec) %*% w2)
-      current_best <- which.max(opt_mean)
-
-      not_best <- setdiff(1:n_options, current_best)
-      if(all(thresh > pnorm(0, opt_mean[current_best] - opt_mean[not_best],
-                            sqrt(opt_var[current_best] + opt_var[not_best]))) ||
-         t >= max_steps) break
-    }
-
-    # Compute trial results
-    fix_sequence <- fix_sequence[1:t]
+    # Calculate option values
     opt_values <- drop(trial_x %*% w)
-    best_opt <- which.max(opt_values)
-
-    # Calculate fixation proportions
-    prop_fix_opt <- vapply(1:n_options, function(i) {
-      sum(fix_sequence %in% seq(from=i, by=n_options, length.out=n_attributes))/t
-    }, numeric(1))
-
-    prop_fix_att <- vapply(1:n_attributes, function(j) {
-      sum(fix_sequence %in% seq(from=j, to=n_options*n_attributes, by=n_attributes))/t
-    }, numeric(1))
 
     # Store trial results
     all_trials[[trial]] <- list(
       trial = trial,
-      response = current_best,
-      best_option = best_opt,
-      correct = current_best == best_opt,
-      rt = t,
+      response = which.max(trial_results$response),
+      best_option = trial_results$best_option,
+      correct = which.max(trial_results$response) == trial_results$best_option,
+      rt = trial_results$rt,
       x = trial_x,
       opt_values = opt_values,
       weights = w,
@@ -315,9 +215,9 @@ rMASC <- function(data = NULL,
       alpha = alpha,
       delta = delta,
       theta = theta,
-      fix_sequence = fix_sequence,
-      prop_fix_opt = prop_fix_opt,
-      prop_fix_att = prop_fix_att
+      fix_sequence = trial_results$fix_sequence,
+      prop_fix_opt = trial_results$prop_fix_opt,
+      prop_fix_att = trial_results$prop_fix_att
     )
   }
 
@@ -343,13 +243,14 @@ rMASC <- function(data = NULL,
   # Return results
   return(list(
     results = results_df,  # Main results in tidy format
-    weights = w,          # Weights used
-    parameters = list(    # Model parameters used
+    weights = w,           # Weights used
+    parameters = list(     # Model parameters used
       sigma = sigma,
       alpha = alpha,
       delta = delta,
       theta = theta
     ),
-    raw = all_trials     # Raw trial data if needed
+    raw = all_trials       # Raw trial data if needed
   ))
 }
+

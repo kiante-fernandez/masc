@@ -18,6 +18,6 @@ Matrix of attribute values (n x m).
 }
 \description{
 Internal function that generates attribute values for options ensuring no option
-dominates another (i.e., is better on all attri butes).
+dominates another (i.e., is better on all attributes).
 }
 \keyword{internal}
