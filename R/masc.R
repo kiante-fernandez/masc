@@ -172,7 +172,18 @@ rMASC <- function(data = NULL,
     }
   }
 
-  # Pre-allocate results
+  # Pre-allocate results data frame
+  results_df <- data.frame(
+    trial = integer(n_trials),
+    response = integer(n_trials),
+    best_option = integer(n_trials),
+    correct = logical(n_trials),
+    rt = integer(n_trials),
+    matrix(0, nrow = n_trials, ncol = n_options,
+           dimnames = list(NULL, paste0("prop_fix_opt", 1:n_options)))
+  )
+
+  # Pre-allocate raw results list
   all_trials <- vector("list", n_trials)
 
   # Process each trial
@@ -201,7 +212,19 @@ rMASC <- function(data = NULL,
     # Calculate option values
     opt_values <- drop(trial_x %*% w)
 
-    # Store trial results
+    # Store trial results directly in data frame
+    results_df$trial[trial] <- trial
+    results_df$response[trial] <- which.max(trial_results$response)
+    results_df$best_option[trial] <- trial_results$best_option
+    results_df$correct[trial] <- which.max(trial_results$response) == trial_results$best_option
+    results_df$rt[trial] <- trial_results$rt
+
+    # Store fixation proportions
+    for(i in 1:n_options) {
+      results_df[[paste0("prop_fix_opt", i)]][trial] <- trial_results$prop_fix_opt[i]
+    }
+
+    # Store full results in raw list
     all_trials[[trial]] <- list(
       trial = trial,
       response = which.max(trial_results$response),
@@ -221,25 +244,6 @@ rMASC <- function(data = NULL,
     )
   }
 
-  # Convert results to tidy data frame
-  results_df <- do.call(rbind, lapply(all_trials, function(trial) {
-    # Create base results
-    base_results <- data.frame(
-      trial = trial$trial,
-      response = trial$response,
-      best_option = trial$best_option,
-      correct = trial$correct,
-      rt = trial$rt
-    )
-
-    # Add proportion fixation columns for each option
-    for(i in 1:n_options) {
-      base_results[[paste0("prop_fix_opt", i)]] <- trial$prop_fix_opt[i]
-    }
-
-    base_results
-  }))
-
   # Add original trial data if provided
   if(!is.null(data)) {
     results_df <- cbind(results_df, data)
@@ -247,15 +251,15 @@ rMASC <- function(data = NULL,
 
   # Return results
   return(list(
-    results = results_df,  # Main results in tidy format
-    weights = w,           # Weights used
-    parameters = list(     # Model parameters used
+    results = results_df,
+    weights = w,
+    parameters = list(
       sigma = sigma,
       alpha = alpha,
       delta = delta,
       theta = theta
     ),
-    raw = all_trials       # Raw trial data if needed
+    raw = all_trials
   ))
 }
 

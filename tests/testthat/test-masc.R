@@ -148,4 +148,106 @@ test_that("rMASC produces stable results with same seed and weights", {
   expect_equal(result1$raw, result2$raw)
 })
 
+test_that("C++ functions handle numerical edge cases", {
+  # Test generate_attributes with extreme lambda values
+  expect_silent(result <- generate_attributes_cpp(2, 3, 1e-10))
+  expect_silent(result <- generate_attributes_cpp(2, 3, 1e10))
+
+  # Test MASC_SearchRule_myopic with extreme precision values
+  n <- 2
+  m <- 3
+  w <- c(0.5, 0.3, 0.2)
+  w2 <- w^2
+  sp <- rep(1e-10, m)  # Very low precision
+  thresh <- 0.01
+  alpha <- 3
+  prec <- matrix(1e-10, n, m)  # Very low precision
+  mu <- matrix(0, n, m)
+  expect_silent(result <- MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha, prec, mu))
+  expect_true(all(is.finite(result)))
+
+  # Test with very high precision
+  sp <- rep(1e10, m)
+  prec <- matrix(1e10, n, m)
+  expect_silent(result <- MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha, prec, mu))
+  expect_true(all(is.finite(result)))
+})
+
+test_that("Fixation sequences are valid", {
+  w <- c(0.5, 0.3, 0.2)  # Explicit weights
+  result <- rMASC(n = 1, n_options = 2, n_attributes = 3, w = w)
+
+  # Check fix_sequence structure
+  fix_seq <- result$raw[[1]]$fix_sequence
+  expect_true(is.numeric(fix_seq))
+  expect_true(all(fix_seq >= 1))
+  expect_true(all(fix_seq <= 6))  # 2 options * 3 attributes
+
+  # Check fixation proportions sum to 1
+  prop_opt <- result$raw[[1]]$prop_fix_opt
+  expect_equal(sum(prop_opt), 1, tolerance = 1e-10)
+
+  prop_att <- result$raw[[1]]$prop_fix_att
+  expect_equal(sum(prop_att), 1, tolerance = 1e-10)
+})
+
+test_that("rMASC handles different numbers of options correctly", {
+  # Test with 3 options
+  n_opt <- 3
+  n_att <- 2
+  w <- c(0.6, 0.4)
+  result <- rMASC(n = 1, n_options = n_opt, n_attributes = n_att, w = w)
+
+  # Check results structure adapts to n_options
+  expect_equal(ncol(result$raw[[1]]$x), n_att)
+  expect_equal(nrow(result$raw[[1]]$x), n_opt)
+  expect_equal(length(result$raw[[1]]$prop_fix_opt), n_opt)
+
+  # Verify column names in results dataframe
+  expect_true(all(paste0("prop_fix_opt", 1:n_opt) %in% names(result$results)))
+})
+
+test_that("MASC decision process is coherent", {
+  # Create data where one option clearly dominates
+  custom_data <- data.frame(
+    opt1_att1 = 5,  # Clearly better option
+    opt1_att2 = 5,
+    opt1_att3 = 5,
+    opt2_att1 = 1,
+    opt2_att2 = 1,
+    opt2_att3 = 1
+  )
+
+  w <- c(0.4, 0.3, 0.3)
+  result <- rMASC(data = custom_data, w = w, sigma = 0.1)  # Low noise
+
+  # Should choose the dominant option
+  expect_equal(result$results$response, 1)
+  expect_equal(result$results$best_option, 1)
+  expect_true(result$results$correct)
+})
+
+test_that("MASC sampling behavior is reasonable", {
+  set.seed(123)
+  w <- c(0.5, 0.3, 0.2)  # Explicit weights
+  result <- rMASC(n = 100, w = w)  # Run multiple trials
+
+  # Response time (rt) should be reasonable
+  expect_true(all(result$results$rt > 0))
+  expect_true(all(result$results$rt <= 100))  # max_steps default
+
+  # Accuracy should be above chance
+  accuracy <- mean(result$results$correct)
+  expect_true(accuracy > 0.5)  # Should be better than random guessing
+
+  # Fixation proportions should be reasonable
+  expect_true(all(result$results$prop_fix_opt1 >= 0))
+  expect_true(all(result$results$prop_fix_opt1 <= 1))
+  expect_true(all(result$results$prop_fix_opt2 >= 0))
+  expect_true(all(result$results$prop_fix_opt2 <= 1))
+
+  # Each trial's fixation proportions should sum to 1
+  trial_sums <- result$results$prop_fix_opt1 + result$results$prop_fix_opt2
+  expect_true(all(abs(trial_sums - 1) < 1e-10))
+})
 
