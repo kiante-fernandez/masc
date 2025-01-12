@@ -123,7 +123,6 @@ rMASC <- function(data = NULL,
                   theta = 0.01,
                   lambda = 1,
                   max_steps = 100) {
-
   # Validate numeric parameters
   if (sigma <= 0) stop("sigma must be positive")
   if (alpha < 0) stop("alpha must be non-negative")
@@ -159,12 +158,9 @@ rMASC <- function(data = NULL,
 
   # If data provided, validate column names
   if(!is.null(data)) {
-    expected_cols <- c()
-    for(i in 1:n_options) {
-      for(j in 1:n_attributes) {
-        expected_cols <- c(expected_cols, sprintf("opt%d_att%d", i, j))
-      }
-    }
+    expected_cols <- outer(1:n_options, 1:n_attributes,
+                           FUN = function(i, j) sprintf("opt%d_att%d", i, j))
+    expected_cols <- as.vector(expected_cols)
     missing_cols <- setdiff(expected_cols, names(data))
     if(length(missing_cols) > 0) {
       stop("Missing columns: ", paste(missing_cols, collapse=", "),
@@ -172,25 +168,37 @@ rMASC <- function(data = NULL,
     }
   }
 
-  # Pre-allocate results data frame
+  # Pre-compute column names for fixation proportions
+  fix_opt_cols <- paste0("prop_fix_opt", seq_len(n_options))
+
+  # Pre-allocate results data frame with all necessary columns
   results_df <- data.frame(
-    trial = integer(n_trials),
+    trial = seq_len(n_trials),
     response = integer(n_trials),
     best_option = integer(n_trials),
     correct = logical(n_trials),
-    rt = integer(n_trials),
-    matrix(0, nrow = n_trials, ncol = n_options,
-           dimnames = list(NULL, paste0("prop_fix_opt", 1:n_options)))
+    rt = integer(n_trials)
   )
+
+  # Pre-allocate fixation proportion matrix
+  prop_fix_matrix <- matrix(0, nrow = n_trials, ncol = n_options,
+                            dimnames = list(NULL, fix_opt_cols))
 
   # Pre-allocate raw results list
   all_trials <- vector("list", n_trials)
 
+  # Pre-allocate trial data if not provided
+  if(is.null(data)) {
+    trial_data <- replicate(n_trials,
+                            generate_attributes_cpp(n_options, n_attributes, lambda),
+                            simplify = FALSE)
+  }
+
   # Process each trial
-  for(trial in 1:n_trials) {
-    # Get or generate stimulus values
+  for(trial in seq_len(n_trials)) {
+    # Get or extract stimulus values
     trial_x <- if(is.null(data)) {
-      generate_attributes_cpp(n_options, n_attributes, lambda)
+      trial_data[[trial]]
     } else {
       matrix(as.numeric(data[trial, ]), nrow=n_options, byrow=TRUE)
     }
@@ -212,17 +220,15 @@ rMASC <- function(data = NULL,
     # Calculate option values
     opt_values <- drop(trial_x %*% w)
 
-    # Store trial results directly in data frame
-    results_df$trial[trial] <- trial
+    # Efficient batch assignment of trial results
     results_df$response[trial] <- which.max(trial_results$response)
     results_df$best_option[trial] <- trial_results$best_option
-    results_df$correct[trial] <- which.max(trial_results$response) == trial_results$best_option
     results_df$rt[trial] <- trial_results$rt
+    results_df$correct[trial] <-
+      which.max(trial_results$response) == trial_results$best_option
 
-    # Store fixation proportions
-    for(i in 1:n_options) {
-      results_df[[paste0("prop_fix_opt", i)]][trial] <- trial_results$prop_fix_opt[i]
-    }
+    # Store fixation proportions in matrix
+    prop_fix_matrix[trial, ] <- trial_results$prop_fix_opt
 
     # Store full results in raw list
     all_trials[[trial]] <- list(
@@ -243,6 +249,9 @@ rMASC <- function(data = NULL,
       prop_fix_att = trial_results$prop_fix_att
     )
   }
+
+  # Combine results_df with prop_fix_matrix
+  results_df <- cbind(results_df, prop_fix_matrix)
 
   # Add original trial data if provided
   if(!is.null(data)) {

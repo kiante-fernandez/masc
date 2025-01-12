@@ -93,11 +93,29 @@ The function returns a list containing:
   - best option
   - choice consistency
   - number of fixations (rt)
-  - value difference
   - fixation proportions
 - `weights`: Vector of attribute weights used
 - `parameters`: List of model parameters used
 - `raw`: List containing detailed raw data for each trial
+
+The `raw` component contains a list where each element corresponds to a
+trial and includes:
+
+- `trial`: Trial number
+- `response`: The option chosen by the model (1 to n_options)
+- `best_option`: The option with the highest weighted value
+- `correct`: Boolean indicating if response matches best_option
+- `rt`: Number of fixations taken to reach a decision
+- `x`: Matrix of true attribute values for all options
+- `opt_values`: Vector of computed option values (weighted sums)
+- `weights`: Vector of attribute weights used in this trial
+- `sigma`: Sampling noise parameter used
+- `alpha`: Search sensitivity parameter used
+- `delta`: Threshold increment parameter used
+- `theta`: Initial threshold parameter used
+- `fix_sequence`: Vector showing the sequence of fixations made
+- `prop_fix_opt`: Vector of proportions of fixations to each option
+- `prop_fix_att`: Vector of proportions of fixations to each attribute
 
 ## Reference
 
