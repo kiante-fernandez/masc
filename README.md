@@ -67,6 +67,108 @@ results <- rMASC(
 )
 ```
 
+### Example use
+
+    library(masc)
+    library(ggplot2)
+    library(dplyr)
+    library(tidyr)
+    library(patchwork)
+
+    # Set simulation parameters
+    params <- list(
+      n = 100,              # Number of trials
+      n_options = 2,        # Number of choice options
+      n_attributes = 3,     # Number of attributes per option
+      w = c(0.5, 0.3, 0.2), # Weights for each attribute
+      sigma = 1,            # Sampling noise
+      alpha = 3,            # Search sensitivity
+      delta = 0.01,         # Threshold increment
+      theta = 0.01,         # Initial threshold
+      lambda = 1,           # Prior precision
+      max_steps = 100       # Maximum fixations allowed
+    )
+
+    # Run simulation
+    set.seed(123)
+    results <- do.call(rMASC, params)
+
+    # Process choice proportions
+    choice_props <- results$results %>%
+      mutate(Choice = factor(response, labels = c("Option1", "Option2"))) %>%
+      group_by(Choice) %>%
+      summarise(Proportion = n()/100)
+
+    # Process fixation data
+    total_counts <- numeric(params$n_options * params$n_attributes)
+    for(trial in results$raw) {
+      fix_seq <- trial$fix_sequence
+      trial_counts <- table(factor(fix_seq, 
+                                   levels = 1:(params$n_options * params$n_attributes)))
+      total_counts <- total_counts + as.numeric(trial_counts)
+    }
+
+    # Create Option-Attribute-Pair (OAP) data
+    all_props <- total_counts / sum(total_counts)
+    oap_data <- data.frame(Proportion = all_props) %>%
+      mutate(oap_number = 1:length(all_props)) %>%
+      mutate(
+        Option = paste0("Opt", ceiling(oap_number/3)),
+        Attribute = paste0("Att", ((oap_number-1) %% 3) + 1)
+      ) %>%
+      select(Option, Attribute, Proportion)
+
+    # Define consistent theme
+    theme_masc <- function() {
+      theme_classic() +
+        theme(
+          plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+          axis.title = element_text(size = 12, face = "bold"),
+          axis.text = element_text(size = 11),
+          legend.position = "bottom"
+        )
+    }
+
+    # Create visualizations
+    # 1. Fixation Distribution
+    p1 <- ggplot(results$results, aes(x = rt, fill = factor(response))) +
+      geom_histogram(position = "dodge", bins = 30, color = "white") +
+      scale_fill_manual(values = c("#2171B5", "#CB181D"),
+                        labels = c("Choice = Option1", "Choice = Option2")) +
+      labs(title = "Number of Fixations", x = "Number of Fixations", y = "Count") +
+      theme_masc()
+
+    # 2. Choice Probability
+    p2 <- ggplot(choice_props, aes(x = "", y = Proportion, fill = Choice)) +
+      geom_bar(stat = "identity", width = 0.6) +
+      geom_text(aes(label = sprintf("%.2f", Proportion)), 
+                position = position_stack(vjust = 0.5),
+                color = "white", 
+                size = 4) +
+      scale_fill_manual(values = c("#2171B5", "#CB181D")) +
+      labs(title = "Choice Probability", y = "Proportion", x = "Response") +
+      theme_masc() +
+      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1))
+
+    # 3. OAP Heatmap
+    p3 <- ggplot(oap_data, aes(x = Attribute, y = Option, fill = Proportion)) +
+      geom_tile(color = "white") +
+      scale_fill_distiller(palette = "Blues", direction = 1) +
+      geom_text(aes(label = sprintf("%.4f", Proportion)), size = 4) +
+      labs(title = "Fixation Proportions by Option-Attribute Pair") +
+      theme_masc()
+
+    # Combine plots
+    combined_plot <- p1 + p2 + p3 +
+      plot_layout(ncol = 2) +
+      plot_annotation(
+        title = "Example: MASC Model Simulation Results",
+        theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+      )
+
+    # Display plot
+    print(combined_plot)
+
 ## Function Parameters
 
 The `rMASC()` function accepts the following parameters:
