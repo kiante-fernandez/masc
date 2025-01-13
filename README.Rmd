@@ -75,7 +75,7 @@ results <- rMASC(
 ```
 
 ### Example use
-```
+```r
 library(masc)
 library(ggplot2)
 library(dplyr)
