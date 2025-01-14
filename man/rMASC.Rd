@@ -65,7 +65,24 @@ A list containing:
 }
 \item weights: Vector of attribute weights used
 \item parameters: List of model parameters used (sigma, alpha, delta, theta)
-\item raw: List containing detailed raw data for each trial
+\item raw: List containing detailed raw data for each trial. Each element corresponds to a trial and includes:
+\itemize{
+\item trial: Trial number
+\item response: The option chosen by the model (1 to n_options)
+\item best_option: The option with the highest weighted value
+\item correct: Boolean indicating if response matches best_option
+\item rt: Number of fixations taken to reach a decision
+\item x: Matrix of true attribute values for all options
+\item opt_values: Vector of computed option values (weighted sums)
+\item weights: Vector of attribute weights used in this trial
+\item sigma: Sampling noise parameter used
+\item alpha: Search sensitivity parameter used
+\item delta: Threshold increment parameter used
+\item theta: Initial threshold parameter used
+\item fix_sequence: Vector showing the sequence of fixations made
+\item prop_fix_opt: Vector of proportions of fixations to each option
+\item prop_fix_att: Vector of proportions of fixations to each attribute
+}
 }
 }
 \description{
