@@ -2,6 +2,7 @@
 
 export(rMASC)
 importFrom(Rcpp,evalCpp)
+importFrom(SuppDists,rinvGauss)
 importFrom(stats,pnorm)
 importFrom(stats,qnorm)
 importFrom(stats,rbeta)

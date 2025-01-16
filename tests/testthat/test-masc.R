@@ -251,3 +251,42 @@ test_that("MASC sampling behavior is reasonable", {
   expect_true(all(abs(trial_sums - 1) < 1e-10))
 })
 
+test_that("rMASC handles fixation durations correctly", {
+  skip_if_not_installed("SuppDists")
+
+  set.seed(123) # For reproducibility
+
+  # Test with more trials
+  result <- rMASC(
+    n = 100,
+    w = c(0.5, 0.3, 0.2),
+    duration_model = "invgauss",
+    duration_params = list(nu = 250, lambda = 2.5)
+  )
+
+  # Check duration-related fields exist
+  expect_true("rt_ms" %in% names(result$results))
+  expect_true("rt_fixations" %in% names(result$results))
+
+  # Get all fixation durations across all trials
+  all_durations <- unlist(lapply(result$raw, function(x) x$fix_durations))
+
+  # Check values are reasonable
+  expect_true(all(all_durations > 0))
+
+  # With more trials, mean should be closer to nu
+  mean_duration <- mean(all_durations)
+  expect_true(abs(mean_duration - 250) < 50,
+              info = paste("Mean duration:", mean_duration))
+
+  # Test with duration_model = "none"
+  result_no_duration <- rMASC(
+    n = 5, # Keep small n for no-duration test
+    w = c(0.5, 0.3, 0.2),
+    duration_model = "none"
+  )
+
+  # Should still have basic RT fields
+  expect_true("rt" %in% names(result_no_duration$results))
+  expect_false("fix_durations" %in% names(result_no_duration$raw[[1]]))
+})

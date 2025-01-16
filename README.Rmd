@@ -192,7 +192,12 @@ The `rMASC()` function accepts the following parameters:
 - `theta`: Initial decision threshold (default: 0.01)
 - `lambda`: Precision of prior beliefs about attributes (default: 1)
 - `max_steps`: Maximum number of fixations allowed (default: 100)
-
+- `duration_model`: Character. Method for modeling fixation durations:
+  - "none" (default) - no duration modeling
+  - "invgauss" - inverse Gaussian distributed durations
+- `duration_params`: List. Parameters for the duration model:
+  - For "invgauss": nu (mean duration in ms, default: 250), lambda (shape parameter, default: 2.5)
+  
 ## Output Structure
 
 The function returns a list containing:
@@ -202,29 +207,30 @@ The function returns a list containing:
   - chosen option
   - best option
   - choice consistency
-  - number of fixations (rt)
+  - number of fixations (rt_fixations)
+  - total response time in ms (rt_ms)
   - fixation proportions
 - `weights`: Vector of attribute weights used
 - `parameters`: List of model parameters used
-- `raw`: List containing detailed raw data for each trial
-
-The `raw` component contains a list where each element corresponds to a trial and includes:
-
-- `trial`: Trial number
-- `response`: The option chosen by the model (1 to n_options)
-- `best_option`: The option with the highest weighted value
-- `correct`: Boolean indicating if response matches best_option
-- `rt`: Number of fixations taken to reach a decision
-- `x`: Matrix of true attribute values for all options
-- `opt_values`: Vector of computed option values (weighted sums)
-- `weights`: Vector of attribute weights used in this trial
-- `sigma`: Sampling noise parameter used
-- `alpha`: Search sensitivity parameter used
-- `delta`: Threshold increment parameter used
-- `theta`: Initial threshold parameter used
-- `fix_sequence`: Vector showing the sequence of fixations made
-- `prop_fix_opt`: Vector of proportions of fixations to each option
-- `prop_fix_att`: Vector of proportions of fixations to each attribute
+- `raw`: List containing detailed raw data for each trial including:
+  - `trial`: Trial number
+  - `response`: The option chosen by the model (1 to n_options)
+  - `best_option`: The option with the highest weighted value
+  - `correct`: Boolean indicating if response matches best_option
+  - `rt`: Number of fixations taken to reach a decision
+  - `fix_durations`: Vector of durations in ms 
+  - `total_rt_ms`: Total response time
+  - `mean_fix_duration`: Mean fixation duration
+  - `x`: Matrix of true attribute values for all options
+  - `opt_values`: Vector of computed option values (weighted sums)
+  - `weights`: Vector of attribute weights used in this trial
+  - `sigma`: Sampling noise parameter used
+  - `alpha`: Search sensitivity parameter used
+  - `delta`: Threshold increment parameter used
+  - `theta`: Initial threshold parameter used
+  - `fix_sequence`: Vector showing the sequence of fixations made
+  - `prop_fix_opt`: Vector of proportions of fixations to each option
+  - `prop_fix_att`: Vector of proportions of fixations to each attribute
 
 ## Reference
 

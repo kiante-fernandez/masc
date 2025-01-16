@@ -10,7 +10,8 @@ Description: Implements functions to simulate multi-attribute decision making us
 License: MIT + file LICENSE
 Imports:
     Rcpp,
-    stats
+    stats,
+    SuppDists
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

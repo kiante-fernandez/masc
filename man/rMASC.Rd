@@ -15,7 +15,9 @@ rMASC(
   delta = 0.01,
   theta = 0.01,
   lambda = 1,
-  max_steps = 100
+  max_steps = 100,
+  duration_model = "none",
+  duration_params = list(nu = 250, lambda = 2.5)
 )
 }
 \arguments{
@@ -50,6 +52,13 @@ make it more random (default: 3).}
 \item{lambda}{Numeric. Precision of prior beliefs about attributes (default: 1).}
 
 \item{max_steps}{Integer. Maximum number of fixations allowed (default: 100).}
+
+\item{duration_model}{Character. Method for modeling fixation durations:
+"none" (default) or "invgauss" for inverse Gaussian distributed durations.}
+
+\item{duration_params}{List. Parameters for fixation duration modeling. For "invgauss",
+contains nu (mean duration in ms, default: 250) and lambda (shape parameter,
+default: 2.5).}
 }
 \value{
 A list containing:
@@ -60,11 +69,13 @@ A list containing:
 \item response: Option chosen by model (1 to n_options)
 \item best_option: Option with highest weighted value
 \item correct: Whether response matches best_option
-\item rt: Number of fixations taken
+\item rt_fixations: Number of fixations taken
+\item rt_ms: Total response time in milliseconds (if duration model used)
 \item prop_fix_opt1, prop_fix_opt2: Proportion of fixations to each option
 }
 \item weights: Vector of attribute weights used
-\item parameters: List of model parameters used (sigma, alpha, delta, theta)
+\item parameters: List of model parameters used (sigma, alpha, delta, theta,
+duration_model, duration_params)
 \item raw: List containing detailed raw data for each trial. Each element corresponds to a trial and includes:
 \itemize{
 \item trial: Trial number
@@ -72,6 +83,9 @@ A list containing:
 \item best_option: The option with the highest weighted value
 \item correct: Boolean indicating if response matches best_option
 \item rt: Number of fixations taken to reach a decision
+\item fix_durations: Vector of fixation durations in ms (if duration model used)
+\item total_rt_ms: Total response time in ms (if duration model used)
+\item mean_fix_duration: Mean fixation duration in ms (if duration model used)
 \item x: Matrix of true attribute values for all options
 \item opt_values: Vector of computed option values (weighted sums)
 \item weights: Vector of attribute weights used in this trial
@@ -106,10 +120,12 @@ trial_data <- data.frame(
     opt2_att3 = c(3.1, 3.3, 3.0)   # Attribute 3 values
 )
 
-# Run model with custom weights
+# Run model with custom weights and inverse Gaussian fixation durations
 results <- rMASC(
     data = trial_data,
-    w = c(0.5, 0.3, 0.2)  # weights for attributes
+    w = c(0.5, 0.3, 0.2),  # weights for attributes
+    duration_model = "invgauss",
+    duration_params = list(nu = 250, lambda = 2.5)
 )
 
 }

@@ -67,6 +67,11 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #' @param theta Numeric. Initial decision threshold (default: 0.01).
 #' @param lambda Numeric. Precision of prior beliefs about attributes (default: 1).
 #' @param max_steps Integer. Maximum number of fixations allowed (default: 100).
+#' @param duration_model Character. Method for modeling fixation durations:
+#'   "none" (default) or "invgauss" for inverse Gaussian distributed durations.
+#' @param duration_params List. Parameters for fixation duration modeling. For "invgauss",
+#'   contains nu (mean duration in ms, default: 250) and lambda (shape parameter,
+#'   default: 2.5).
 #'
 #' @return A list containing:
 #' \itemize{
@@ -76,11 +81,13 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'       \item response: Option chosen by model (1 to n_options)
 #'       \item best_option: Option with highest weighted value
 #'       \item correct: Whether response matches best_option
-#'       \item rt: Number of fixations taken
+#'       \item rt_fixations: Number of fixations taken
+#'       \item rt_ms: Total response time in milliseconds (if duration model used)
 #'       \item prop_fix_opt1, prop_fix_opt2: Proportion of fixations to each option
 #'     }
 #'   \item weights: Vector of attribute weights used
-#'   \item parameters: List of model parameters used (sigma, alpha, delta, theta)
+#'   \item parameters: List of model parameters used (sigma, alpha, delta, theta,
+#'         duration_model, duration_params)
 #'   \item raw: List containing detailed raw data for each trial. Each element corresponds to a trial and includes:
 #'     \itemize{
 #'       \item trial: Trial number
@@ -88,6 +95,9 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'       \item best_option: The option with the highest weighted value
 #'       \item correct: Boolean indicating if response matches best_option
 #'       \item rt: Number of fixations taken to reach a decision
+#'       \item fix_durations: Vector of fixation durations in ms (if duration model used)
+#'       \item total_rt_ms: Total response time in ms (if duration model used)
+#'       \item mean_fix_duration: Mean fixation duration in ms (if duration model used)
 #'       \item x: Matrix of true attribute values for all options
 #'       \item opt_values: Vector of computed option values (weighted sums)
 #'       \item weights: Vector of attribute weights used in this trial
@@ -117,16 +127,18 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'     opt2_att3 = c(3.1, 3.3, 3.0)   # Attribute 3 values
 #' )
 #'
-#' # Run model with custom weights
+#' # Run model with custom weights and inverse Gaussian fixation durations
 #' results <- rMASC(
 #'     data = trial_data,
-#'     w = c(0.5, 0.3, 0.2)  # weights for attributes
+#'     w = c(0.5, 0.3, 0.2),  # weights for attributes
+#'     duration_model = "invgauss",
+#'     duration_params = list(nu = 250, lambda = 2.5)
 #' )
 #'
 #' @references
 #' Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search
 #' and Choice.
-#'
+#' @importFrom SuppDists rinvGauss
 #' @export
 rMASC <- function(data = NULL,
                   n = 1,
@@ -138,7 +150,16 @@ rMASC <- function(data = NULL,
                   delta = 0.01,
                   theta = 0.01,
                   lambda = 1,
-                  max_steps = 100) {
+                  max_steps = 100,
+                  duration_model = "none",
+                  duration_params = list(nu = 250, lambda = 2.5)) {
+
+  # Check if SuppDists is available when using invgauss
+  if (duration_model == "invgauss" && !requireNamespace("SuppDists", quietly = TRUE)) {
+    stop("Package 'SuppDists' needed for inverse Gaussian durations. Please install it.",
+         call. = FALSE)
+  }
+
   # Validate numeric parameters
   if (sigma <= 0) stop("sigma must be positive")
   if (alpha < 0) stop("alpha must be non-negative")
@@ -147,6 +168,18 @@ rMASC <- function(data = NULL,
   if (lambda <= 0) stop("lambda must be positive")
   if(!is.numeric(n) || n < 1 || n != round(n))
     stop("n must be a positive integer")
+
+  # Validate duration parameters
+  if (duration_model == "invgauss") {
+    if (!is.list(duration_params) ||
+        !all(c("nu", "lambda") %in% names(duration_params))) {
+      duration_params <- list(nu = 250, lambda = 2.5)
+      warning("Using default duration parameters: nu = 250ms, lambda = 2.5")
+    }
+    if (duration_params$nu <= 0 || duration_params$lambda <= 0) {
+      stop("Duration parameters must be positive")
+    }
+  }
 
   # Determine number of trials
   n_trials <- if(!is.null(data)) {
@@ -193,7 +226,9 @@ rMASC <- function(data = NULL,
     response = integer(n_trials),
     best_option = integer(n_trials),
     correct = logical(n_trials),
-    rt = integer(n_trials)
+    rt = integer(n_trials),
+    rt_fixations = integer(n_trials),
+    rt_ms = numeric(n_trials)
   )
 
   # Pre-allocate fixation proportion matrix
@@ -246,24 +281,59 @@ rMASC <- function(data = NULL,
     # Store fixation proportions in matrix
     prop_fix_matrix[trial, ] <- trial_results$prop_fix_opt
 
-    # Store full results in raw list
-    all_trials[[trial]] <- list(
-      trial = trial,
-      response = which.max(trial_results$response),
-      best_option = trial_results$best_option,
-      correct = which.max(trial_results$response) == trial_results$best_option,
-      rt = trial_results$rt,
-      x = trial_x,
-      opt_values = opt_values,
-      weights = w,
-      sigma = sigma,
-      alpha = alpha,
-      delta = delta,
-      theta = theta,
-      fix_sequence = trial_results$fix_sequence,
-      prop_fix_opt = trial_results$prop_fix_opt,
-      prop_fix_att = trial_results$prop_fix_att
-    )
+    # Generate and store fixation durations
+    if (duration_model == "invgauss") {
+      fix_durations <- SuppDists::rinvGauss(
+        n = trial_results$rt,
+        nu = duration_params$nu,
+        lambda = duration_params$lambda
+      )
+
+      results_df$rt_fixations[trial] <- trial_results$rt
+      results_df$rt_ms[trial] <- sum(fix_durations)
+
+      # Store full results in raw list
+      all_trials[[trial]] <- list(
+        trial = trial,
+        response = which.max(trial_results$response),
+        best_option = trial_results$best_option,
+        correct = which.max(trial_results$response) == trial_results$best_option,
+        rt = trial_results$rt,
+        fix_durations = fix_durations,
+        total_rt_ms = sum(fix_durations),
+        mean_fix_duration = mean(fix_durations),
+        x = trial_x,
+        opt_values = opt_values,
+        weights = w,
+        sigma = sigma,
+        alpha = alpha,
+        delta = delta,
+        theta = theta,
+        fix_sequence = trial_results$fix_sequence,
+        prop_fix_opt = trial_results$prop_fix_opt,
+        prop_fix_att = trial_results$prop_fix_att
+      )
+    } else {
+      results_df$rt_fixations[trial] <- trial_results$rt
+      # Store full results in raw list
+      all_trials[[trial]] <- list(
+        trial = trial,
+        response = which.max(trial_results$response),
+        best_option = trial_results$best_option,
+        correct = which.max(trial_results$response) == trial_results$best_option,
+        rt = trial_results$rt,
+        x = trial_x,
+        opt_values = opt_values,
+        weights = w,
+        sigma = sigma,
+        alpha = alpha,
+        delta = delta,
+        theta = theta,
+        fix_sequence = trial_results$fix_sequence,
+        prop_fix_opt = trial_results$prop_fix_opt,
+        prop_fix_att = trial_results$prop_fix_att
+      )
+    }
   }
 
   # Combine results_df with prop_fix_matrix
@@ -282,7 +352,9 @@ rMASC <- function(data = NULL,
       sigma = sigma,
       alpha = alpha,
       delta = delta,
-      theta = theta
+      theta = theta,
+      duration_model = duration_model,
+      duration_params = duration_params
     ),
     raw = all_trials
   ))
