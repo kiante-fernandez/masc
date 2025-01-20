@@ -142,7 +142,7 @@ rMASC <- function(data = NULL,
   # Validate numeric parameters
   if (sigma <= 0) stop("sigma must be positive")
   if (alpha < 0) stop("alpha must be non-negative")
-  if (delta <= 0) stop("delta must be positive")
+#  if (delta <= 0) stop("delta must be positive")
   if (theta <= 0) stop("theta must be positive")
   if (lambda <= 0) stop("lambda must be positive")
   if(!is.numeric(n) || n < 1 || n != round(n))
