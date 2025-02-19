@@ -79,11 +79,29 @@ NumericVector MASC_SearchRule_myopic_cpp(
   }
 
   // MATLAB-style normalization
-  myopic_score.replace(0.0, arma::datum::eps);
-  myopic_score /= arma::accu(myopic_score);
+  // Define a very small positive number
+  // double smallPositiveNumber = 1e-308;
+  // // Replace zero scores with the small positive number
+  // myopic_score.replace(0.0, smallPositiveNumber);
+  // //myopic_score.replace(0.0, std::numeric_limits<double>::min());
+  // //myopic_score.replace(0.0, arma::datum::eps);
+  // myopic_score /= arma::accu(myopic_score);
+  // arma::mat transition_prob = arma::exp(alpha * myopic_score);
+  // transition_prob /= arma::accu(transition_prob);
+  // return NumericVector(wrap(arma::vectorise(transition_prob)));
 
-  arma::mat transition_prob = arma::exp(alpha * myopic_score);
-  transition_prob /= arma::accu(transition_prob);
+  // Replace zero scores with small positive number
+  double smallPositiveNumber = 1e-308;
+  myopic_score.replace(0.0, smallPositiveNumber);
+
+  // First normalization: divide by total sum (identical to MATLAB's myopicScoreS)
+  double total_sum = arma::accu(myopic_score);
+  arma::mat myopic_score_S = myopic_score / total_sum;
+
+  // Apply search sensitivity and second normalization (identical to MATLAB's transitionMatrix)
+  arma::mat transition_prob = arma::exp(alpha * myopic_score_S);
+  double exp_total_sum = arma::accu(transition_prob);
+  transition_prob /= exp_total_sum;
 
   return NumericVector(wrap(arma::vectorise(transition_prob)));
 }

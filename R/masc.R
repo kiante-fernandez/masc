@@ -216,9 +216,20 @@ rMASC <- function(data = NULL,
     trial_x <- if(is.null(data)) {
       trial_data[[trial]]
     } else {
+      # Check dimensions before creating matrix
+      if (length(data[trial, ]) != n_options * n_attributes) {
+        stop(sprintf("Error in trial %d: Number of data values (%d) does not match expected values for %d options and %d attributes (%d)",
+                     trial, length(data[trial, ]), n_options, n_attributes, n_options * n_attributes))
+      }
       matrix(as.numeric(data[trial, ]), nrow=n_options, byrow=TRUE)
     }
 
+    # After creating matrix, check dimensions explicitly
+    if (nrow(trial_x) != n_options || ncol(trial_x) != n_attributes) {
+      stop(sprintf("Error in trial %d: Matrix dimensions (%d, %d) do not match expected dimensions (%d, %d)",
+                   trial, nrow(trial_x), ncol(trial_x), n_options, n_attributes))
+    }
+    #print(dim(trial_x))
     # Run sampling process using C++
     trial_results <- rMASC_sampling_cpp(
       trial_x = trial_x,
@@ -235,7 +246,6 @@ rMASC <- function(data = NULL,
 
     # Calculate option values
     opt_values <- drop(trial_x %*% w)
-
     # Efficient batch assignment of trial results
     results_df$response[trial] <- which.max(trial_results$response)
     results_df$best_option[trial] <- trial_results$best_option

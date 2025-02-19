@@ -12,6 +12,15 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
                        int n_options,
                        int n_attributes) {
 
+  // Check dimensions
+  if (trial_x.n_rows != n_options || trial_x.n_cols != n_attributes) {
+    stop("Error: trial_x dimensions (%d, %d) do not match expected dimensions (%d, %d)",
+         trial_x.n_rows, trial_x.n_cols, n_options, n_attributes);
+  }
+  if (w.n_elem != n_attributes) {
+    stop("Error: weights vector length (%d) does not match number of attributes (%d)",
+         w.n_elem, n_attributes);
+  }
   // Pre-compute squared weights and sampling precision
   arma::vec w2 = w % w;
   arma::vec sp = arma::vec(n_attributes).fill(1.0/(sigma*sigma));
@@ -59,11 +68,6 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
       mu(current_fix) * prec(current_fix)) / new_prec_val;
     prec(current_fix) = new_prec_val;
 
-    // Update tracking
-    fix_sequence(t) = current_fix;
-    t++;
-    thresh += delta;
-
     // Check termination conditions
     arma::vec opt_mean = mu * w;
     arma::vec opt_var = zeros(n_options);
@@ -86,7 +90,10 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
         }
       }
     }
-
+        // Update tracking
+    fix_sequence(t) = current_fix;
+    t++;
+    thresh += delta;
     if(should_terminate || t >= max_steps) break;
   }
 

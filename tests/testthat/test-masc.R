@@ -209,22 +209,22 @@ test_that("rMASC handles different numbers of options correctly", {
 
 test_that("MASC decision process is coherent", {
   # Create data where one option clearly dominates
-  # custom_data <- data.frame(
-  #   opt1_att1 = 5,  # Clearly better option
-  #   opt1_att2 = 5,
-  #   opt1_att3 = 5,
-  #   opt2_att1 = 1,
-  #   opt2_att2 = 1,
-  #   opt2_att3 = 1
-  # )
-  #
-  # w <- c(0.4, 0.3, 0.3)
-  # result <- rMASC(data = custom_data, w = w, sigma = 0.1)  # Low noise
-  #
-  # # Should choose the dominant option
-  # expect_equal(result$results$response, 1)
-  # expect_equal(result$results$best_option, 1)
-  # expect_true(result$results$correct)
+  custom_data <- data.frame(
+    opt1_att1 = 5,  # Clearly better option
+    opt1_att2 = 5,
+    opt1_att3 = 5,
+    opt2_att1 = 1,
+    opt2_att2 = 1,
+    opt2_att3 = 1
+  )
+
+  w <- c(0.4, 0.3, 0.3)
+  result <- rMASC(data = custom_data, w = w, sigma = 0.1)  # Low noise
+
+  # Should choose the dominant option
+  expect_equal(result$results$response, 1)
+  expect_equal(result$results$best_option, 1)
+  expect_true(result$results$correct)
 })
 
 test_that("MASC sampling behavior is reasonable", {
@@ -249,5 +249,260 @@ test_that("MASC sampling behavior is reasonable", {
   # Each trial's fixation proportions should sum to 1
   trial_sums <- result$results$prop_fix_opt1 + result$results$prop_fix_opt2
   expect_true(all(abs(trial_sums - 1) < 1e-10))
+})
+
+test_that("MASC_SearchRule_myopic matches MATLAB implementation", {
+  # Helper function to check matrix output against expected values
+  check_output <- function(result, expected_matrix, expected_sum, tolerance = 1e-3) { #tolerance = 1e-4
+    # Convert result to matrix
+    result_matrix <- round(matrix(result, nrow = 2, byrow = FALSE),4)
+    # Check matrix values
+    expect_equal(result_matrix, expected_matrix, tolerance = tolerance)
+    # Check column sums
+    col_sums <- colSums(result_matrix)
+    expect_equal(col_sums, expected_sum, tolerance = tolerance)
+    # Check total sum is 1
+    expect_equal(sum(result), 1, tolerance = 1e-10)
+    # Check all values are probabilities
+    expect_true(all(result >= 0))
+    expect_true(all(result <= 1))
+  }
+
+  # Case 1: Equal Weights
+  n <- 2
+  m <- 3
+  w <- c(1/3, 1/3, 1/3)
+  w2 <- w^2
+  sp <- rep(1, m)
+  thresh <- 0.01
+  alpha <- 3
+  attMean <- matrix(c(1.0, 0.5, -0.2,
+                     0.3, 0.8, 0.1),
+                   nrow=2, byrow=TRUE)
+  attPrecision <- matrix(1, nrow=n, ncol=m)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.2421, 0.2421, 0.2421,
+                            0.0912, 0.0912, 0.0912),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.3333, 0.3333, 0.3333)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 2: Extreme Weights
+  w <- c(0.98, 0.01, 0.01)
+  w2 <- w^2
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.8007, 0.0399, 0.0399,
+                            0.0399, 0.0399, 0.0399),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.8405, 0.0797, 0.0797)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 3: Extreme Values
+  w <- c(0.5, 0.3, 0.2)
+  w2 <- w^2
+  attMean <- matrix(c(10.0, -10.0, 0.0,
+                     -10.0, 10.0, 0.0),
+                   nrow=2, byrow=TRUE)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.2437, 0.2437, 0.2437,
+                            0.0896, 0.0896, 0.0896),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.3333, 0.3333, 0.3333)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 4: Different Precisions
+  attMean <- matrix(c(1.0, 0.5, -0.2,
+                     0.3, 0.8, 0.1),
+                   nrow=2, byrow=TRUE)
+  sp <- c(0.1, 1.0, 10.0)
+  attPrecision <- matrix(c(0.1, 1.0, 10.0,
+                          10.0, 1.0, 0.1),
+                        nrow=2, byrow=TRUE)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.8007, 0.0399, 0.0399,
+                            0.0399, 0.0399, 0.0399),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.8405, 0.0797, 0.0797)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 5: Edge Threshold
+  w <- c(0.5, 0.3, 0.2)
+  w2 <- w^2
+  sp <- rep(1, m)
+  thresh <- 0.49999
+  attMean <- matrix(c(1.0, 0.5, -0.2,
+                     0.3, 0.8, 0.1),
+                   nrow=2, byrow=TRUE)
+  attPrecision <- matrix(1, nrow=n, ncol=m)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.2057, 0.2321, 0.2485,
+                            0.1156, 0.1025, 0.0957),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.3213, 0.3345, 0.3442)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 6: Zero Means
+  thresh <- 0.01
+  attMean <- matrix(0, nrow=n, ncol=m)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.3457, 0.0771, 0.0771,
+                            0.3457, 0.0771, 0.0771),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.6914, 0.1543, 0.1543)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 7: High Precision Contrast
+  w <- c(0.4, 0.3, 0.3)
+  w2 <- w^2
+  attMean <- matrix(c(1.0, 0.5, -0.2,
+                     0.3, 0.8, 0.1),
+                   nrow=2, byrow=TRUE)
+  attPrecision <- matrix(c(100.0, 1.0, 1.0,
+                          1.0, 100.0, 1.0),
+                        nrow=2, byrow=TRUE)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.0399, 0.0399, 0.0399,
+                            0.8007, 0.0399, 0.0399),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.8405, 0.0797, 0.0797)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 8: Low Search Sensitivity
+  w <- c(0.5, 0.3, 0.2)
+  w2 <- w^2
+  attPrecision <- matrix(1, nrow=n, ncol=m)
+  lowAlpha <- 0.1
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, lowAlpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.1810, 0.1638, 0.1638,
+                            0.1638, 0.1638, 0.1638),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.3448, 0.3276, 0.3276)
+
+  check_output(result, expected_matrix, expected_sum)
+
+  # Case 9: High Search Sensitivity
+  highAlpha <- 10.0
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, highAlpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.9998, 0.0000, 0.0000,
+                            0.0000, 0.0000, 0.0000),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.9998, 0.0001, 0.0001)
+
+  # Higher tolerance for this test case due to very small values
+  check_output(result, expected_matrix, expected_sum, tolerance = 1e-3)
+
+  # Case 10: Uneven Precision
+  w <- c(0.5, 0.3, 0.2)
+  w2 <- w^2
+  alpha <- 3
+  sp <- c(0.1, 1.0, 10.0)
+  attPrecision <- matrix(c(10.0, 1.0, 0.1,
+                          0.1, 1.0, 10.0),
+                        nrow=2, byrow=TRUE)
+
+  result <- masc:::MASC_SearchRule_myopic_cpp(n, m, w, w2, sp, thresh, alpha,
+                                             attPrecision, attMean)
+
+  # From MATLAB output
+  expected_matrix <- matrix(c(0.0399, 0.0399, 0.0399,
+                            0.8005, 0.0399, 0.0399),
+                          nrow=2, byrow=TRUE)
+  expected_sum <- c(0.8404, 0.0798, 0.0798)
+
+  check_output(result, expected_matrix, expected_sum)
+})
+
+# End-to-end testing for full rMASC function
+test_that("Full rMASC implementation with myopic search is consistent", {
+  set.seed(123)
+
+  # Create test data with known structure
+  test_data <- data.frame(
+    opt1_att1 = 1.0,
+    opt1_att2 = 0.5,
+    opt1_att3 = -0.2,
+    opt2_att1 = 0.3,
+    opt2_att2 = 0.8,
+    opt2_att3 = 0.1
+  )
+
+  # Run model with very low noise to ensure deterministic behavior
+  result <- rMASC(
+    data = test_data,
+    w = c(0.5, 0.3, 0.2),
+    sigma = 0.01,  # Very low noise
+    alpha = 3,
+    delta = 0.01,
+    theta = 0.01,
+    max_steps = 50
+  )
+
+  # Verify fixation proportions are valid
+  expect_true(all(result$results$prop_fix_opt1 >= 0))
+  expect_true(all(result$results$prop_fix_opt1 <= 1))
+  expect_true(all(result$results$prop_fix_opt2 >= 0))
+  expect_true(all(result$results$prop_fix_opt2 <= 1))
+
+  # Verify proportions sum to 1
+  expect_equal(
+    result$results$prop_fix_opt1 + result$results$prop_fix_opt2,
+    1,
+    tolerance = 1e-10
+  )
+
+  # Verify fixation sequence values are valid OAP indices
+  fix_seq <- result$raw[[1]]$fix_sequence
+  expect_true(all(fix_seq >= 1))
+  expect_true(all(fix_seq <= 6))  # 2 options * 3 attributes
+
+  # Verify option values calculation is correct
+  expect_equal(
+    result$raw[[1]]$opt_values,
+    c(1.0*0.5 + 0.5*0.3 + (-0.2)*0.2, 0.3*0.5 + 0.8*0.3 + 0.1*0.2),
+    tolerance = 1e-10
+  )
 })
 
