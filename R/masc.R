@@ -148,6 +148,13 @@ rMASC <- function(data = NULL,
   if(!is.numeric(n) || n < 1 || n != round(n))
     stop("n must be a positive integer")
 
+  # Convert scalar sigma to vector if needed
+  if(length(sigma) == 1) {
+    sigma <- rep(sigma, n_attributes)
+  } else if(length(sigma) != n_attributes) {
+    stop("Length of sigma vector must match number of attributes")
+  }
+
   # Determine number of trials
   n_trials <- if(!is.null(data)) {
     if(!is.data.frame(data)) stop("data must be a data frame")

@@ -25,14 +25,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // rMASC_sampling_cpp
-List rMASC_sampling_cpp(const arma::mat& trial_x, const arma::vec& w, double sigma, double alpha, double delta, double theta, double lambda, int max_steps, int n_options, int n_attributes);
+List rMASC_sampling_cpp(const arma::mat& trial_x, const arma::vec& w, const arma::vec& sigma, double alpha, double delta, double theta, double lambda, int max_steps, int n_options, int n_attributes);
 RcppExport SEXP _masc_rMASC_sampling_cpp(SEXP trial_xSEXP, SEXP wSEXP, SEXP sigmaSEXP, SEXP alphaSEXP, SEXP deltaSEXP, SEXP thetaSEXP, SEXP lambdaSEXP, SEXP max_stepsSEXP, SEXP n_optionsSEXP, SEXP n_attributesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type trial_x(trial_xSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type sigma(sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type delta(deltaSEXP);
     Rcpp::traits::input_parameter< double >::type theta(thetaSEXP);

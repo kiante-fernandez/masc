@@ -31,74 +31,95 @@ NumericVector MASC_SearchRule_myopic_cpp(
 
   arma::mat myopic_score(n, m, arma::fill::zeros);
 
-  for(int i = 0; i < n; ++i) {
-    arma::uvec not_i = arma::find(arma::linspace<arma::uvec>(0, n-1, n) != i);
+  if(m > 1) {
+    // MULTI-ATTRIBUTE CASE
+    for(int i = 0; i < n; ++i) {
+      arma::uvec not_i = arma::find(arma::linspace<arma::uvec>(0, n-1, n) != i);
 
-    for(int j = 0; j < m; ++j) {
-      // Calculate new variance
-      double opt_var_new = w2_vec(j) / new_prec(i,j);
-      if(m > 1) {
+      for(int j = 0; j < m; ++j) {
+        // Calculate not_j (indices of all attributes except j)
         arma::uvec not_j = arma::find(arma::linspace<arma::uvec>(0, m-1, m) != j);
+
+        // Calculate new variance
+        double opt_var_new = w2_vec(j) / new_prec(i,j);
         for(arma::uword k = 0; k < not_j.n_elem; ++k) {
           opt_var_new += w2_vec(not_j(k)) / prec_mat(i, not_j(k));
         }
-      }
 
-      // MATLAB-style variance calculation
-      arma::vec var_term = opt_var_new + opt_vars_old.elem(not_i);
+        // MATLAB-style variance calculation
+        arma::vec var_term = opt_var_new + opt_vars_old.elem(not_i);
 
-      // Threshold computation
-      arma::vec opt_mean_thresh(not_i.n_elem);
-      for(arma::uword k = 0; k < not_i.n_elem; ++k) {
-        double sd = std::sqrt(var_term(k));
-        opt_mean_thresh(k) = opt_means(not_i(k)) - R::qnorm(thresh, 0.0, sd, 1, 0);
-      }
+        // Threshold computation
+        arma::vec opt_mean_thresh(not_i.n_elem);
+        for(arma::uword k = 0; k < not_i.n_elem; ++k) {
+          double sd = std::sqrt(var_term(k));
+          opt_mean_thresh(k) = opt_means(not_i(k)) - R::qnorm(thresh, 0.0, sd, 1, 0);
+        }
 
-      // Calculate other_terms ONCE PER ATTRIBUTE (FIXED)
-      double other_terms = 0.0;
-      if(m > 1) {
-        arma::uvec not_j = arma::find(arma::linspace<arma::uvec>(0, m-1, m) != j);
+        // Calculate other_terms (contribution from non-j attributes)
+        double other_terms = 0.0;
         for(arma::uword l = 0; l < not_j.n_elem; ++l) {
           other_terms += mu_mat(i, not_j(l)) * w_vec(not_j(l));
         }
+
+        // MATLAB-style threshold calculation
+        arma::vec threshold_terms(not_i.n_elem);
+        for(arma::uword k = 0; k < not_i.n_elem; ++k) {
+          double term = (new_prec(i,j)/w_vec(j)) * (opt_mean_thresh(k) - other_terms);
+          threshold_terms(k) = (term - prec_mat(i,j)*mu_mat(i,j)) / sp_vec(j);
+        }
+
+        double sample_thresh = arma::max(threshold_terms);
+
+        // MATLAB-style CDF calculation
+        double att_sd = std::sqrt(1.0 / prec_mat(i,j));
+        myopic_score(i,j) = R::pnorm(mu_mat(i,j), sample_thresh, att_sd, 1, 0);
       }
+    }
+  } else {
+    // SINGLE ATTRIBUTE CASE - simplified calculation
+    for(int i = 0; i < n; ++i) {
+      arma::uvec not_i = arma::find(arma::linspace<arma::uvec>(0, n-1, n) != i);
 
-      // MATLAB-style threshold calculation
-      arma::vec threshold_terms(not_i.n_elem);
-      for(arma::uword k = 0; k < not_i.n_elem; ++k) {
-        double term = (new_prec(i,j)/w_vec(j)) * (opt_mean_thresh(k) - other_terms);
-        threshold_terms(k) = (term - prec_mat(i,j)*mu_mat(i,j)) / sp_vec(j);
+      for(int j = 0; j < m; ++j) {
+        // Simplified calculation for m=1 case
+        double opt_var_new = w2_vec(j) / new_prec(i,j);
+
+        // MATLAB-style variance calculation
+        arma::vec var_term = opt_var_new + opt_vars_old.elem(not_i);
+
+        // Threshold computation
+        arma::vec opt_mean_thresh(not_i.n_elem);
+        for(arma::uword k = 0; k < not_i.n_elem; ++k) {
+          double sd = std::sqrt(var_term(k));
+          opt_mean_thresh(k) = opt_means(not_i(k)) - R::qnorm(thresh, 0.0, sd, 1, 0);
+        }
+
+        // MATLAB-style threshold calculation - SIMPLIFIED for m=1
+        arma::vec threshold_terms(not_i.n_elem);
+        for(arma::uword k = 0; k < not_i.n_elem; ++k) {
+          double term = (new_prec(i,j)/w_vec(j)) * opt_mean_thresh(k);
+          threshold_terms(k) = (term - prec_mat(i,j)*mu_mat(i,j)) / sp_vec(j);
+        }
+
+        double sample_thresh = arma::max(threshold_terms);
+
+        // MATLAB-style CDF calculation
+        double att_sd = std::sqrt(1.0 / prec_mat(i,j));
+        myopic_score(i,j) = R::pnorm(mu_mat(i,j), sample_thresh, att_sd, 1, 0);
       }
-
-      double sample_thresh = arma::max(threshold_terms);
-
-      // MATLAB-style CDF calculation
-      double att_sd = std::sqrt(1.0 / prec_mat(i,j));
-      myopic_score(i,j) = R::pnorm(mu_mat(i,j), sample_thresh, att_sd, 1, 0);
     }
   }
-
-  // MATLAB-style normalization
-  // Define a very small positive number
-  // double smallPositiveNumber = 1e-308;
-  // // Replace zero scores with the small positive number
-  // myopic_score.replace(0.0, smallPositiveNumber);
-  // //myopic_score.replace(0.0, std::numeric_limits<double>::min());
-  // //myopic_score.replace(0.0, arma::datum::eps);
-  // myopic_score /= arma::accu(myopic_score);
-  // arma::mat transition_prob = arma::exp(alpha * myopic_score);
-  // transition_prob /= arma::accu(transition_prob);
-  // return NumericVector(wrap(arma::vectorise(transition_prob)));
 
   // Replace zero scores with small positive number
   double smallPositiveNumber = 1e-308;
   myopic_score.replace(0.0, smallPositiveNumber);
 
-  // First normalization: divide by total sum (identical to MATLAB's myopicScoreS)
+  // First normalization: divide by total sum
   double total_sum = arma::accu(myopic_score);
   arma::mat myopic_score_S = myopic_score / total_sum;
 
-  // Apply search sensitivity and second normalization (identical to MATLAB's transitionMatrix)
+  // Apply search sensitivity and second normalization
   arma::mat transition_prob = arma::exp(alpha * myopic_score_S);
   double exp_total_sum = arma::accu(transition_prob);
   transition_prob /= exp_total_sum;
