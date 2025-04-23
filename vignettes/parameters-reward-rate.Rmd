@@ -1,0 +1,472 @@
+---
+title: "MASC Parameters and Reward Rate"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MASC Parameters and Reward Rate}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(tidyverse)
+library(patchwork)
+library(broom)
+library(masc)
+```
+
+Search Sensitivity and Reward Rate: The relationship between MASC parameters and different behavioral outcome measures.
+
+Higher levels of sampling noise lead to lower reward rates, while higher values of threshold
+change and the search sensitivity parameter lead to higher reward rates (note that if \alpha = 0, search
+is random).
+
+
+```{r}
+# masc_attr_weights_sampling_noise.R - Creates Figure 8 reproduction from
+# Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+
+simulate_parameter_effects <- function(n_trials = 2000) {
+  # Parameter ranges
+  sigmas <- seq(0.1, 3, length.out = 10)
+  deltas <- seq(0.01, 0.1, length.out = 10)
+  alphas <- seq(0, 10, length.out = 10)
+
+  # Generate fixed weights for consistency
+  set.seed(2025)
+  w <- rbeta(3, 3/4, 3/4)
+  w <- w/sum(w)
+
+  # 1. Effect of Sampling Noise (sigma)
+  cat("Processing Sampling Noise (sigma)...\n")
+  sigma_trial_data <- list()
+  sigma_binned_data <- list()
+
+  for(i in seq_along(sigmas)) {
+    s <- sigmas[i]
+    cat(sprintf("  Processing sigma = %.2f (%d/%d)\n", s, i, length(sigmas)))
+
+    # Run model
+    result <- rMASC(n = n_trials/10, sigma = s, w = w)
+
+    # Extract trial data
+    trial_data <- map_dfr(result$raw, function(trial) {
+      tibble(
+        sigma = s,
+        correct = trial$correct,
+        rt = trial$rt,
+        reward_rate = as.numeric(trial$correct)/trial$rt
+      )
+    })
+
+    sigma_trial_data[[i]] <- trial_data
+
+    # Calculate binned data
+    n_trials_actual <- nrow(trial_data)
+    sigma_binned_data[[i]] <- tibble(
+      sigma = s,
+      mean_correct = mean(as.numeric(trial_data$correct)),
+      mean_rt = mean(trial_data$rt),
+      mean_reward_rate = mean(trial_data$reward_rate),
+      se_correct = sd(as.numeric(trial_data$correct))/sqrt(n_trials_actual),
+      se_rt = sd(trial_data$rt)/sqrt(n_trials_actual),
+      se_reward_rate = sd(trial_data$reward_rate)/sqrt(n_trials_actual)
+    )
+  }
+
+  # 2. Effect of Threshold Change (delta)
+  cat("\nProcessing Threshold Change (delta)...\n")
+  delta_trial_data <- list()
+  delta_binned_data <- list()
+
+  for(i in seq_along(deltas)) {
+    d <- deltas[i]
+    cat(sprintf("  Processing delta = %.2f (%d/%d)\n", d, i, length(deltas)))
+
+    # Run model
+    result <- rMASC(n = n_trials/10, delta = d, w = w)
+
+    # Extract trial data
+    trial_data <- map_dfr(result$raw, function(trial) {
+      tibble(
+        delta = d,
+        correct = trial$correct,
+        rt = trial$rt,
+        reward_rate = as.numeric(trial$correct)/trial$rt
+      )
+    })
+
+    delta_trial_data[[i]] <- trial_data
+
+    # Calculate binned data
+    n_trials_actual <- nrow(trial_data)
+    delta_binned_data[[i]] <- tibble(
+      delta = d,
+      mean_correct = mean(as.numeric(trial_data$correct)),
+      mean_rt = mean(trial_data$rt),
+      mean_reward_rate = mean(trial_data$reward_rate),
+      se_correct = sd(as.numeric(trial_data$correct))/sqrt(n_trials_actual),
+      se_rt = sd(trial_data$rt)/sqrt(n_trials_actual),
+      se_reward_rate = sd(trial_data$reward_rate)/sqrt(n_trials_actual)
+    )
+  }
+
+  # 3. Effect of Search Sensitivity (alpha)
+  cat("\nProcessing Search Sensitivity (alpha)...\n")
+  alpha_trial_data <- list()
+  alpha_binned_data <- list()
+
+  for(i in seq_along(alphas)) {
+    a <- alphas[i]
+    cat(sprintf("  Processing alpha = %.2f (%d/%d)\n", a, i, length(alphas)))
+
+    # Run model
+    result <- rMASC(n = n_trials/10, alpha = a, w = w)
+
+    # Extract trial data
+    trial_data <- map_dfr(result$raw, function(trial) {
+      tibble(
+        alpha = a,
+        correct = trial$correct,
+        rt = trial$rt,
+        reward_rate = as.numeric(trial$correct)/trial$rt
+      )
+    })
+
+    alpha_trial_data[[i]] <- trial_data
+
+    # Calculate binned data
+    n_trials_actual <- nrow(trial_data)
+    alpha_binned_data[[i]] <- tibble(
+      alpha = a,
+      mean_correct = mean(as.numeric(trial_data$correct)),
+      mean_rt = mean(trial_data$rt),
+      mean_reward_rate = mean(trial_data$reward_rate),
+      se_correct = sd(as.numeric(trial_data$correct))/sqrt(n_trials_actual),
+      se_rt = sd(trial_data$rt)/sqrt(n_trials_actual),
+      se_reward_rate = sd(trial_data$reward_rate)/sqrt(n_trials_actual)
+    )
+  }
+
+  # Combine data
+  sigma_trial <- bind_rows(sigma_trial_data)
+  sigma_binned <- bind_rows(sigma_binned_data)
+
+  delta_trial <- bind_rows(delta_trial_data)
+  delta_binned <- bind_rows(delta_binned_data)
+
+  alpha_trial <- bind_rows(alpha_trial_data)
+  alpha_binned <- bind_rows(alpha_binned_data)
+
+  # Return all data
+  list(
+    sigma_trial = sigma_trial,
+    sigma_binned = sigma_binned,
+    delta_trial = delta_trial,
+    delta_binned = delta_binned,
+    alpha_trial = alpha_trial,
+    alpha_binned = alpha_binned
+  )
+}
+
+plot_parameter_effects <- function(results) {
+  theme_param <- theme_classic() +
+    theme(
+      text = element_text(size = 12),
+      plot.title = element_text(size = 14, face = "bold"),
+      panel.grid.minor = element_blank(),
+      strip.text = element_text(face = "bold")
+    )
+
+  # 1. For sampling noise
+  # Linear model for binned data
+  sigma_correct_lm <- lm(mean_correct ~ sigma, data = results$sigma_binned)
+  sigma_rt_lm <- lm(mean_rt ~ sigma, data = results$sigma_binned)
+  sigma_rr_lm <- lm(mean_reward_rate ~ sigma, data = results$sigma_binned)
+
+  # Create plots
+  sigma_correct_plot <- ggplot() +
+    geom_jitter(data = results$sigma_trial,
+                aes(x = sigma, y = as.numeric(correct)),
+                alpha = 0.01, width = 0.05, height = 0) +
+    geom_point(data = results$sigma_binned,
+               aes(x = sigma, y = mean_correct),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$sigma_binned,
+                  aes(x = sigma,
+                      ymin = mean_correct - se_correct,
+                      ymax = mean_correct + se_correct),
+                  width = 0.1, color = "darkgreen") +
+    geom_smooth(data = results$sigma_binned,
+                aes(x = sigma, y = mean_correct),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Sampling Noise σs",
+         y = "Choice Consistency",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(sigma_correct_lm)[2],
+                            summary(sigma_correct_lm)$coefficients[2,4])) +
+    theme_param
+
+  sigma_rt_plot <- ggplot() +
+    geom_jitter(data = results$sigma_trial,
+                aes(x = sigma, y = rt),
+                alpha = 0.01, width = 0.05, height = 0) +
+    geom_point(data = results$sigma_binned,
+               aes(x = sigma, y = mean_rt),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$sigma_binned,
+                  aes(x = sigma,
+                      ymin = mean_rt - se_rt,
+                      ymax = mean_rt + se_rt),
+                  width = 0.1, color = "darkgreen") +
+    geom_smooth(data = results$sigma_binned,
+                aes(x = sigma, y = mean_rt),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Sampling Noise σs",
+         y = "Number of Fixations",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(sigma_rt_lm)[2],
+                            summary(sigma_rt_lm)$coefficients[2,4])) +
+    theme_param
+
+  sigma_rr_plot <- ggplot() +
+    geom_jitter(data = results$sigma_trial,
+                aes(x = sigma, y = reward_rate),
+                alpha = 0.01, width = 0.05, height = 0) +
+    geom_point(data = results$sigma_binned,
+               aes(x = sigma, y = mean_reward_rate),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$sigma_binned,
+                  aes(x = sigma,
+                      ymin = mean_reward_rate - se_reward_rate,
+                      ymax = mean_reward_rate + se_reward_rate),
+                  width = 0.1, color = "darkgreen") +
+    geom_smooth(data = results$sigma_binned,
+                aes(x = sigma, y = mean_reward_rate),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Sampling Noise σs",
+         y = "Reward Rate",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(sigma_rr_lm)[2],
+                            summary(sigma_rr_lm)$coefficients[2,4])) +
+    theme_param
+
+  # 2. For threshold change (delta)
+  # Linear model for binned data
+  delta_correct_lm <- lm(mean_correct ~ delta, data = results$delta_binned)
+  delta_rt_lm <- lm(mean_rt ~ delta, data = results$delta_binned)
+  delta_rr_lm <- lm(mean_reward_rate ~ delta, data = results$delta_binned)
+
+  # Create plots
+  delta_correct_plot <- ggplot() +
+    geom_jitter(data = results$delta_trial,
+                aes(x = delta, y = as.numeric(correct)),
+                alpha = 0.01, width = 0.001, height = 0) +
+    geom_point(data = results$delta_binned,
+               aes(x = delta, y = mean_correct),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$delta_binned,
+                  aes(x = delta,
+                      ymin = mean_correct - se_correct,
+                      ymax = mean_correct + se_correct),
+                  width = 0.002, color = "darkgreen") +
+    geom_smooth(data = results$delta_binned,
+                aes(x = delta, y = mean_correct),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Threshold Change θΔ",
+         y = "Choice Consistency",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(delta_correct_lm)[2],
+                            summary(delta_correct_lm)$coefficients[2,4])) +
+    theme_param
+
+  delta_rt_plot <- ggplot() +
+    geom_jitter(data = results$delta_trial,
+                aes(x = delta, y = rt),
+                alpha = 0.01, width = 0.001, height = 0) +
+    geom_point(data = results$delta_binned,
+               aes(x = delta, y = mean_rt),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$delta_binned,
+                  aes(x = delta,
+                      ymin = mean_rt - se_rt,
+                      ymax = mean_rt + se_rt),
+                  width = 0.002, color = "darkgreen") +
+    geom_smooth(data = results$delta_binned,
+                aes(x = delta, y = mean_rt),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Threshold Change θΔ",
+         y = "Number of Fixations",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(delta_rt_lm)[2],
+                            summary(delta_rt_lm)$coefficients[2,4])) +
+    theme_param
+
+  delta_rr_plot <- ggplot() +
+    geom_jitter(data = results$delta_trial,
+                aes(x = delta, y = reward_rate),
+                alpha = 0.01, width = 0.001, height = 0) +
+    geom_point(data = results$delta_binned,
+               aes(x = delta, y = mean_reward_rate),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$delta_binned,
+                  aes(x = delta,
+                      ymin = mean_reward_rate - se_reward_rate,
+                      ymax = mean_reward_rate + se_reward_rate),
+                  width = 0.002, color = "darkgreen") +
+    geom_smooth(data = results$delta_binned,
+                aes(x = delta, y = mean_reward_rate),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Threshold Change θΔ",
+         y = "Reward Rate",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(delta_rr_lm)[2],
+                            summary(delta_rr_lm)$coefficients[2,4])) +
+    theme_param
+
+  # 3. For search sensitivity (alpha)
+  # Linear model for binned data
+  alpha_correct_lm <- lm(mean_correct ~ alpha, data = results$alpha_binned)
+  alpha_rt_lm <- lm(mean_rt ~ alpha, data = results$alpha_binned)
+  alpha_rr_lm <- lm(mean_reward_rate ~ alpha, data = results$alpha_binned)
+
+  # Create plots
+  alpha_correct_plot <- ggplot() +
+    geom_jitter(data = results$alpha_trial,
+                aes(x = alpha, y = as.numeric(correct)),
+                alpha = 0.01, width = 0.1, height = 0) +
+    geom_point(data = results$alpha_binned,
+               aes(x = alpha, y = mean_correct),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$alpha_binned,
+                  aes(x = alpha,
+                      ymin = mean_correct - se_correct,
+                      ymax = mean_correct + se_correct),
+                  width = 0.2, color = "darkgreen") +
+    geom_smooth(data = results$alpha_binned,
+                aes(x = alpha, y = mean_correct),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Search Sensitivity α",
+         y = "Choice Consistency",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(alpha_correct_lm)[2],
+                            summary(alpha_correct_lm)$coefficients[2,4])) +
+    theme_param
+
+  alpha_rt_plot <- ggplot() +
+    geom_jitter(data = results$alpha_trial,
+                aes(x = alpha, y = rt),
+                alpha = 0.01, width = 0.1, height = 0) +
+    geom_point(data = results$alpha_binned,
+               aes(x = alpha, y = mean_rt),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$alpha_binned,
+                  aes(x = alpha,
+                      ymin = mean_rt - se_rt,
+                      ymax = mean_rt + se_rt),
+                  width = 0.2, color = "darkgreen") +
+    geom_smooth(data = results$alpha_binned,
+                aes(x = alpha, y = mean_rt),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Search Sensitivity α",
+         y = "Number of Fixations",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(alpha_rt_lm)[2],
+                            summary(alpha_rt_lm)$coefficients[2,4])) +
+    theme_param
+
+  alpha_rr_plot <- ggplot() +
+    geom_jitter(data = results$alpha_trial,
+                aes(x = alpha, y = reward_rate),
+                alpha = 0.01, width = 0.1, height = 0) +
+    geom_point(data = results$alpha_binned,
+               aes(x = alpha, y = mean_reward_rate),
+               size = 3, color = "darkgreen") +
+    geom_errorbar(data = results$alpha_binned,
+                  aes(x = alpha,
+                      ymin = mean_reward_rate - se_reward_rate,
+                      ymax = mean_reward_rate + se_reward_rate),
+                  width = 0.2, color = "darkgreen") +
+    geom_smooth(data = results$alpha_binned,
+                aes(x = alpha, y = mean_reward_rate),
+                method = "lm", formula = y ~ x, color = "green", se = FALSE) +
+    labs(x = "Search Sensitivity α",
+         y = "Reward Rate",
+         subtitle = sprintf("β = %.3f, p = %.3e",
+                            coef(alpha_rr_lm)[2],
+                            summary(alpha_rr_lm)$coefficients[2,4])) +
+    theme_param
+
+  # Combine plots
+  combined_plot <- wrap_plots(
+    sigma_correct_plot, sigma_rt_plot, sigma_rr_plot,
+    delta_correct_plot, delta_rt_plot, delta_rr_plot,
+    alpha_correct_plot, alpha_rt_plot, alpha_rr_plot,
+    ncol = 3
+  ) +
+    plot_annotation(
+      title = "MASC Model Parameter Effects",
+      theme = theme(plot.title = element_text(size = 16, face = "bold"))
+    )
+
+  # Print summary statistics
+  cat("\nParameter Effects Summary:\n\n")
+
+  cat("\nSampling Noise (σs):\n")
+  cat("  Choice Consistency: β =", round(coef(sigma_correct_lm)[2], 3),
+      ", p =", format.pval(summary(sigma_correct_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(sigma_correct_lm)$r.squared, 3), "\n")
+  cat("  Number of Fixations: β =", round(coef(sigma_rt_lm)[2], 3),
+      ", p =", format.pval(summary(sigma_rt_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(sigma_rt_lm)$r.squared, 3), "\n")
+  cat("  Reward Rate: β =", round(coef(sigma_rr_lm)[2], 3),
+      ", p =", format.pval(summary(sigma_rr_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(sigma_rr_lm)$r.squared, 3), "\n")
+
+  cat("\nThreshold Change (θΔ):\n")
+  cat("  Choice Consistency: β =", round(coef(delta_correct_lm)[2], 3),
+      ", p =", format.pval(summary(delta_correct_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(delta_correct_lm)$r.squared, 3), "\n")
+  cat("  Number of Fixations: β =", round(coef(delta_rt_lm)[2], 3),
+      ", p =", format.pval(summary(delta_rt_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(delta_rt_lm)$r.squared, 3), "\n")
+  cat("  Reward Rate: β =", round(coef(delta_rr_lm)[2], 3),
+      ", p =", format.pval(summary(delta_rr_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(delta_rr_lm)$r.squared, 3), "\n")
+
+  cat("\nSearch Sensitivity (α):\n")
+  cat("  Choice Consistency: β =", round(coef(alpha_correct_lm)[2], 3),
+      ", p =", format.pval(summary(alpha_correct_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(alpha_correct_lm)$r.squared, 3), "\n")
+  cat("  Number of Fixations: β =", round(coef(alpha_rt_lm)[2], 3),
+      ", p =", format.pval(summary(alpha_rt_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(alpha_rt_lm)$r.squared, 3), "\n")
+  cat("  Reward Rate: β =", round(coef(alpha_rr_lm)[2], 3),
+      ", p =", format.pval(summary(alpha_rr_lm)$coefficients[2,4], digits = 3),
+      ", R² =", round(summary(alpha_rr_lm)$r.squared, 3), "\n")
+
+  return(combined_plot)
+}
+```
+
+```{r}
+# Run simulation (this will take some time)
+set.seed(2025)
+n_trials <- 2000  # Reduced for faster execution
+results <- simulate_parameter_effects(n_trials)
+```
+
+```{r, fig.width=14, fig.height=10, out.width="100%"}
+# Plot results
+plots <- plot_parameter_effects(results)
+
+# Display plots
+print(plots)
+```
+
