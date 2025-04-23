@@ -26,24 +26,24 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
          sigma.n_elem, n_attributes);
   }
   // Pre-compute squared weights and sampling precision
-  arma::vec w2 = w % w;
-  arma::vec sp = 1.0 / (sigma % sigma);  // Element-wise division
+  const arma::vec w2 = arma::square(w);
+  const arma::vec sp = 1.0 / arma::square(sigma);
+  const int n_pairs = n_options * n_attributes;
 
   // Initialize belief distributions
-  arma::mat prec = arma::mat(n_options, n_attributes).fill(lambda);
-  arma::mat mu = arma::mat(n_options, n_attributes).zeros();
+  arma::mat prec(n_options, n_attributes, arma::fill::value(lambda));
+  arma::mat mu(n_options, n_attributes, arma::fill::zeros);
 
   // Initialize tracking variables
   int t = 0;
   double thresh = theta;
-  arma::uvec fix_sequence(max_steps);
+  arma::uvec fix_sequence(max_steps, arma::fill::zeros);
 
   // Main decision loop
-  while(true) {
+  while(t < max_steps) {
     // Get transition probabilities
     NumericVector trans_probs = MASC_SearchRule_myopic_cpp(
-      n_options, n_attributes,
-      wrap(w), wrap(w2), wrap(sp),
+      n_options, n_attributes, wrap(w), wrap(w2), wrap(sp),
       thresh, alpha, wrap(prec), wrap(mu)
     );
 
@@ -68,13 +68,10 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
 
     // --- Sample ---
     // Access trial_x using (row, col) indices
-    double current_sample = trial_x(i_fix, j_fix) + R::rnorm(0, sigma(j_fix));
-
-    double old_prec_val = prec(current_fix);
-    double new_prec_val = old_prec_val + sp(j_fix); // sp depends on the attribute j_fix
-
-    mu(i_fix, j_fix) = (current_sample * sp(j_fix) + mu(i_fix, j_fix) * old_prec_val) / new_prec_val;
-    prec(i_fix, j_fix) = new_prec_val;
+    double sample = trial_x(i_fix, j_fix) + R::rnorm(0, sigma(j_fix));
+    double old_prec = prec(i_fix, j_fix);
+    prec(i_fix, j_fix) += sp(j_fix);
+    mu(i_fix, j_fix) = (mu(i_fix, j_fix) * old_prec + sample * sp(j_fix)) / prec(i_fix, j_fix);
 
     // Check termination conditions
     arma::vec opt_mean = mu * w;
@@ -93,13 +90,15 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
     if (unique_max) {
       int current_best = max_indices(0);
       should_terminate = true;
+
       for(int i = 0; i < n_options; i++) {
         if(i != current_best) {
           double mu_diff = opt_mean(current_best) - opt_mean(i);
           double var_diff = opt_var(current_best) + opt_var(i);
           double sigma_diff = std::sqrt(var_diff);
+
           double prob = R::pnorm(0, mu_diff, sigma_diff, 1, 0);
-          if(prob >= thresh) {
+          if(prob > thresh) {
             should_terminate = false;
             break;
           }
@@ -112,7 +111,7 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
 
     thresh += delta;
 
-    if(should_terminate || t >= max_steps) break;
+    if(should_terminate) break;
   }
 
   // Prepare return values
@@ -126,14 +125,15 @@ List rMASC_sampling_cpp(const arma::mat& trial_x,
   arma::vec opt_values = trial_x * w;
   int best_opt = opt_values.index_max();
 
+  // Calculate proportions
   arma::vec prop_fix_opt(n_options, arma::fill::zeros);
   arma::vec prop_fix_att(n_attributes, arma::fill::zeros);
-
-  for(int i = 0; i < t; i++) {
-    int opt = fix_sequence(i) % n_options; // Gets row index (option)
-    int att = fix_sequence(i) / n_options; // Gets column index (attribute)
-    prop_fix_opt(opt) += 1.0/t;
-    prop_fix_att(att) += 1.0/t;
+  if(t > 0) {
+    for(int i = 0; i < t; ++i) {
+      int fix = fix_sequence[i];
+      prop_fix_opt(fix % n_options) += 1.0/t;
+      prop_fix_att(fix / n_options) += 1.0/t;
+    }
   }
 
   // Return results
