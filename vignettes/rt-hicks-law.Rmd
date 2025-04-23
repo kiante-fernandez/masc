@@ -1,0 +1,312 @@
+---
+title: "Response Time and The Number of Options"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Response Time and The Number of Options}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(masc)
+```
+
+
+Constant terms a and b were calculated by regressing the predicted number of fixations
+onto log2(N-1). 
+
+Here, we simulate single attribute decisions with threshold increase 𝜃Δ = .01, search sensitivity α = 5 and sampling noise 𝜎
+ = 1, although MASC consistently predicts this logarithmic relationship across a range of parameter sets.
+
+```{r}
+# masc_hicks_law.R - Creates Figure 11 reproduction from
+# Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+
+library(tidyverse)
+library(patchwork)
+library(masc)
+
+# Function to simulate relationship between number of options and fixations
+simulate_hicks_law <- function(
+    n_trials = 200,              # Number of trials per condition
+    n_subjects = 100,            # Number of simulated participants
+    max_options = 20,            # Maximum number of options to test
+    min_options = 2,             # Minimum number of options to test
+    n_attributes = 1,            # Use single attribute decisions
+    sampling_noise = 1,          # Fixed sampling noise
+    alpha = 5,                   # Fixed search sensitivity
+    delta = 0.01,                # Fixed threshold increase
+    theta = 0.01,                # Fixed initial threshold
+    include_approx_rt = FALSE,   # Whether to include approx RT calculation
+    plot_while_running = FALSE   # Whether to update plot as simulation runs
+) {
+  # Pre-allocate results
+  options_to_test <- min_options:max_options
+  mean_fixations <- numeric(length(options_to_test))
+  mean_approx_rt <- numeric(length(options_to_test))
+
+  # ExGaussian parameters (from paper)
+  mu <- 139.5530
+  sigma <- 63.1433
+  tau <- 91.0133
+
+  # Create color
+  start_color <- c(194, 218, 184) / 255
+
+  # Create and initialize plot if requested
+  if (plot_while_running) {
+    plot(1, 1, type = "n",
+         xlim = c(min_options-1, max_options+1),
+         ylim = c(0, 100),  # Will adjust as data comes in
+         xlab = "Number of Options (N)",
+         ylab = "Number of Fixations",
+         main = "Hick's Law in Multi-Alternative Decisions")
+  }
+
+  # Generate weights
+  weights <- rep(1, n_attributes)  # Equal weights for single attribute
+
+  # Loop through different numbers of options
+  for (i in seq_along(options_to_test)) {
+    n_opts <- options_to_test[i]
+    cat(sprintf("Processing %d options (%d/%d)\n",
+                n_opts, i, length(options_to_test)))
+
+    # Pre-allocate result arrays
+    all_fixations <- matrix(0, nrow = n_trials, ncol = n_subjects)
+    all_approx_rt <- matrix(0, nrow = n_trials, ncol = n_subjects)
+
+    # Process each subject
+    for (s in 1:n_subjects) {
+      # Generate attribute values for all trials
+      trial_data <- do.call(rbind, lapply(1:n_trials, function(t) {
+        # Generate valid attribute values
+        # For single attribute, we don't need to check for dominance
+        attr_vals <- matrix(rnorm(n_opts * n_attributes), nrow = n_opts)
+        as.data.frame(matrix(attr_vals, nrow = 1))
+      }))
+
+      # Rename columns appropriately for rMASC
+      colnames(trial_data) <- c(
+        paste0("opt", rep(1:n_opts, each = n_attributes),
+               "_att", rep(1:n_attributes, n_opts))
+      )
+
+      # Run rMASC for this subject with current parameters
+      result <- rMASC(
+        data = trial_data,
+        w = weights,
+        sigma = sampling_noise,
+        alpha = alpha,
+        delta = delta,
+        theta = theta,
+        n_options = n_opts,
+        n_attributes = n_attributes,
+        max_steps = 100
+      )
+
+      # Extract fixation counts
+      all_fixations[, s] <- result$results$rt
+
+      # Calculate approximate RT if requested
+      if (include_approx_rt) {
+        for (t in 1:n_trials) {
+          curr_rt <- result$results$rt[t]
+          gauss_comp <- rnorm(curr_rt, mu, sigma)
+          exp_comp <- rexp(curr_rt, 1/tau)  # R uses rate parameter (1/scale)
+          all_approx_rt[t, s] <- sum(gauss_comp + exp_comp)
+        }
+      }
+    }
+
+    # Calculate means
+    mean_fixations[i] <- mean(all_fixations)
+    if (include_approx_rt) {
+      mean_approx_rt[i] <- mean(all_approx_rt)
+    }
+
+    # Update plot if requested
+    if (plot_while_running) {
+      # Fit Hick's Law model
+      x_vals <- log2(options_to_test[1:i] - 1)
+      y_vals <- mean_fixations[1:i]
+      model_fit <- lm(y_vals ~ x_vals)
+      a <- model_fit$coefficients[1]
+      b <- model_fit$coefficients[2]
+
+      # Generate prediction
+      x_pred <- 1:max_options
+      y_pred <- a + b * log2(pmax(x_pred - 1, 1))  # Avoid log(0)
+
+      # Clear plot
+      plot(options_to_test[1:i], mean_fixations[1:i],
+           pch = 21, bg = "gray50", col = "transparent",
+           xlim = c(min_options-1, max_options+1),
+           ylim = c(0, max(y_pred, mean_fixations[1:i], na.rm = TRUE) * 1.1),
+           xlab = "Number of Options (N)",
+           ylab = "Number of Fixations",
+           main = "Hick's Law in Multi-Alternative Decisions")
+
+      # Add prediction line
+      lines(x_pred, y_pred, col = rgb(start_color[1], start_color[2], start_color[3]), lwd = 2)
+
+      # Add legend
+      legend("topleft",
+             legend = c("Number of Fixations", "Hick's Law: a + b * log₂(N-1)"),
+             pch = c(21, NA),
+             lty = c(NA, 1),
+             pt.bg = c("gray50", NA),
+             col = c("transparent", rgb(start_color[1], start_color[2], start_color[3])),
+             lwd = c(NA, 2))
+
+      # Force update
+      Sys.sleep(0.1)
+    }
+  }
+
+  # Prepare results
+  results <- tibble(
+    n_options = options_to_test,
+    mean_fixations = mean_fixations
+  )
+
+  if (include_approx_rt) {
+    results$mean_approx_rt <- mean_approx_rt
+  }
+
+  return(results)
+}
+
+# Function to plot Hick's Law results
+plot_hicks_law <- function(results, include_approx_rt = FALSE) {
+  # Fit Hick's Law model to fixation data
+  x_vals <- log2(results$n_options - 1)
+  y_vals <- results$mean_fixations
+  model_fit <- lm(y_vals ~ x_vals)
+  a <- model_fit$coefficients[1]
+  b <- model_fit$coefficients[2]
+
+  # Generate prediction
+  x_pred <- 1:max(results$n_options)
+  y_pred <- a + b * log2(pmax(x_pred - 1, 1))  # Avoid log(0)
+
+  # Start color from paper
+  start_color <- c(194, 218, 184) / 255
+
+  # Create plot data
+  plot_data <- tibble(
+    n_options = results$n_options,
+    mean_fixations = results$mean_fixations
+  )
+
+  pred_data <- tibble(
+    n_options = x_pred,
+    predicted = y_pred
+  )
+
+  # Create fixation plot
+  p1 <- ggplot() +
+    geom_point(data = plot_data,
+               aes(x = n_options, y = mean_fixations),
+               size = 3, shape = 21, fill = "gray50", color = "black") +
+    geom_line(data = pred_data,
+              aes(x = n_options, y = predicted),
+              color = rgb(start_color[1], start_color[2], start_color[3]),
+              size = 1.2) +
+    labs(
+      title = "Relationship between Number of Fixations and Number of Options",
+      x = "Number of Options (N)",
+      y = "Number of Fixations"
+    ) +
+    theme_classic() +
+    theme(
+      plot.title = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+
+  # Create RT plot if requested
+  if (include_approx_rt && "mean_approx_rt" %in% names(results)) {
+    # Fit Hick's Law model to RT data
+    rt_model <- lm(results$mean_approx_rt ~ x_vals)
+    rt_a <- rt_model$coefficients[1]
+    rt_b <- rt_model$coefficients[2]
+
+    # Generate RT prediction
+    rt_pred <- rt_a + rt_b * log2(pmax(x_pred - 1, 1))
+
+    # Create RT plot data
+    rt_plot_data <- tibble(
+      n_options = results$n_options,
+      mean_rt = results$mean_approx_rt
+    )
+
+    rt_pred_data <- tibble(
+      n_options = x_pred,
+      predicted = rt_pred
+    )
+
+    p2 <- ggplot() +
+      geom_point(data = rt_plot_data,
+                 aes(x = n_options, y = mean_rt),
+                 size = 3, shape = 21, fill = "gray50", color = "black") +
+      geom_line(data = rt_pred_data,
+                aes(x = n_options, y = predicted),
+                color = rgb(start_color[1], start_color[2], start_color[3]),
+                size = 1.2) +
+      labs(
+        title = "Relationship between Reaction Time and Number of Options",
+        x = "Number of Options (N)",
+        y = "Reaction Time (ms)"
+      ) +
+      theme_classic() +
+      theme(
+        plot.title = element_text(face = "bold"),
+        panel.grid.minor = element_blank()
+      )
+
+    # Combine plots
+    return(p1 + p2 + plot_layout(ncol = 2))
+  }
+
+  # Otherwise return just the fixation plot
+  return(p1)
+}
+```
+
+
+```{r}
+# Run simulation (note: this can take a while)
+set.seed(2025)
+results <- simulate_hicks_law(
+  n_trials = 200,          # Reduced for faster execution
+  n_subjects = 100,         # Reduced for faster execution
+  max_options = 20,
+  min_options = 2,
+  include_approx_rt = FALSE,
+  plot_while_running = FALSE
+)
+```
+
+
+```{r, fig.width=12, fig.height=8, out.width="100%"}
+# Plot results
+plot <- plot_hicks_law(results)
+print(plot)
+
+# Calculate and report model fit
+x_vals <- log2(results$n_options - 1)
+model_fit <- lm(results$mean_fixations ~ x_vals)
+summary(model_fit)
+
+cat(sprintf("\nHick's Law equation: Number of fixations = %.2f + %.2f * log₂(N-1)\n",
+            model_fit$coefficients[1], model_fit$coefficients[2]))
+cat(sprintf("R² = %.4f\n", summary(model_fit)$r.squared))
+```
+
