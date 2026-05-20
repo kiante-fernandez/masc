@@ -14,18 +14,22 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 The `masc` package implements the Multi-Attribute Search and Choice
 (MASC) model, a hierarchical Bayesian framework for understanding how
 people make decisions between options with multiple attributes. Based on
-the work by Gluth, Deakin, & Rieskamp (2024), this package simulates:
+the work by Gluth, Deakin, & Rieskamp (2026), this package simulates:
 
 - Information search patterns in multi-attribute decisions
-- Belief updating about attribute values
+- Belief updating about attribute values (univariate, or multivariate
+  over correlated attributes via MASC-C)
 - Choice dynamics and decision termination
 - The interplay between attention and valuation
 
 ## Installation
 
 ``` r
-# Install development version from GitHub
-devtools::install_github("kiantefernandez/masc")
+# Install from CRAN
+install.packages("masc")
+
+# Or the development version from GitHub
+devtools::install_github("kiante-fernandez/masc")
 ```
 
 ## Basic Usage
@@ -66,6 +70,35 @@ results <- rMASC(
   w = c(0.5, 0.3, 0.2)  # weights for attributes
 )
 ```
+
+### Correlated Attributes (MASC-C)
+
+By default attributes are treated as independent, reproducing the
+original MASC model. Supplying a correlation structure switches on the
+multivariate **MASC-C** belief update, in which observing one attribute
+updates beliefs about correlated attributes (“belief spread”). Positive
+correlations speed up decisions; negative correlations slow them down.
+
+``` r
+# Decision maker exploits a positive correlation structure (rho = 0.6)
+results <- rMASC(
+  n = 100,
+  w = c(0.5, 0.3, 0.2),
+  Sigma_true   = 0.6,   # stimuli are positively correlated
+  Sigma_belief = 0.6    # and the agent knows it (matched beliefs)
+)
+
+# Full correlation matrices are also accepted, and the agent's beliefs may
+# differ from the true environment (belief-environment mismatch):
+Sigma <- matrix(c(1.0, 0.5, -0.3,
+                  0.5, 1.0,  0.0,
+                 -0.3, 0.0,  1.0), 3, 3, byrow = TRUE)
+results <- rMASC(n = 100, w = c(0.5, 0.3, 0.2),
+                 Sigma_true = Sigma, Sigma_belief = 0)  # agent assumes independence
+```
+
+When `Sigma_belief` is diagonal (or `0`) the model reduces exactly to
+the original univariate MASC update.
 
 ### Example use
 
@@ -186,6 +219,15 @@ The `rMASC()` function accepts the following parameters:
 - `theta`: Initial decision threshold (default: 0.01)
 - `lambda`: Precision of prior beliefs about attributes (default: 1)
 - `max_steps`: Maximum number of fixations allowed (default: 100)
+- `Sigma_true`: Correlation/covariance structure of the generated
+  stimuli — a matrix, or a single number giving a uniform off-diagonal
+  correlation (default: `NULL`, i.e. independent attributes). Ignored
+  when `data` is supplied.
+- `Sigma_belief`: The decision maker’s assumed correlation structure
+  between attributes. This enables the multivariate (“MASC-C”) belief
+  update, where observing one attribute spreads information to
+  correlated attributes. `NULL` (default) matches `Sigma_true`; `0`
+  forces independent (original MASC) beliefs.
 
 ## Output Structure
 
@@ -223,9 +265,9 @@ trial and includes:
 
 ## Reference
 
-Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of
-Multi-Attribute Search and Choice.
-<https://doi.org/10.31234/osf.io/3qzak>
+Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute
+search and choice. *Psychological Review*.
+<https://doi.org/10.1037/rev0000614>
 
 ## License
 

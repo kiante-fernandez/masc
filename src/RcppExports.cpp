@@ -12,21 +12,37 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // generate_attributes_cpp
-NumericMatrix generate_attributes_cpp(int n, int m, double lambda);
-RcppExport SEXP _masc_generate_attributes_cpp(SEXP nSEXP, SEXP mSEXP, SEXP lambdaSEXP) {
+NumericMatrix generate_attributes_cpp(int n, int m, double lambda, Rcpp::Nullable<Rcpp::NumericMatrix> Sigma);
+RcppExport SEXP _masc_generate_attributes_cpp(SEXP nSEXP, SEXP mSEXP, SEXP lambdaSEXP, SEXP SigmaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     Rcpp::traits::input_parameter< int >::type m(mSEXP);
     Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(generate_attributes_cpp(n, m, lambda));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type Sigma(SigmaSEXP);
+    rcpp_result_gen = Rcpp::wrap(generate_attributes_cpp(n, m, lambda, Sigma));
+    return rcpp_result_gen;
+END_RCPP
+}
+// masc_kalman_update_cpp
+List masc_kalman_update_cpp(arma::vec mu, arma::mat Sigma, int j, double sample, double sigma_s_sq);
+RcppExport SEXP _masc_masc_kalman_update_cpp(SEXP muSEXP, SEXP SigmaSEXP, SEXP jSEXP, SEXP sampleSEXP, SEXP sigma_s_sqSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Sigma(SigmaSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< double >::type sample(sampleSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma_s_sq(sigma_s_sqSEXP);
+    rcpp_result_gen = Rcpp::wrap(masc_kalman_update_cpp(mu, Sigma, j, sample, sigma_s_sq));
     return rcpp_result_gen;
 END_RCPP
 }
 // rMASC_sampling_cpp
-List rMASC_sampling_cpp(const arma::mat& trial_x, const arma::vec& w, const arma::vec& sigma, double alpha, double delta, double theta, double lambda, int max_steps, int n_options, int n_attributes);
-RcppExport SEXP _masc_rMASC_sampling_cpp(SEXP trial_xSEXP, SEXP wSEXP, SEXP sigmaSEXP, SEXP alphaSEXP, SEXP deltaSEXP, SEXP thetaSEXP, SEXP lambdaSEXP, SEXP max_stepsSEXP, SEXP n_optionsSEXP, SEXP n_attributesSEXP) {
+List rMASC_sampling_cpp(const arma::mat& trial_x, const arma::vec& w, const arma::vec& sigma, double alpha, double delta, double theta, double lambda, int max_steps, int n_options, int n_attributes, Rcpp::Nullable<Rcpp::NumericMatrix> Sigma_belief);
+RcppExport SEXP _masc_rMASC_sampling_cpp(SEXP trial_xSEXP, SEXP wSEXP, SEXP sigmaSEXP, SEXP alphaSEXP, SEXP deltaSEXP, SEXP thetaSEXP, SEXP lambdaSEXP, SEXP max_stepsSEXP, SEXP n_optionsSEXP, SEXP n_attributesSEXP, SEXP Sigma_beliefSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -40,7 +56,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type max_steps(max_stepsSEXP);
     Rcpp::traits::input_parameter< int >::type n_options(n_optionsSEXP);
     Rcpp::traits::input_parameter< int >::type n_attributes(n_attributesSEXP);
-    rcpp_result_gen = Rcpp::wrap(rMASC_sampling_cpp(trial_x, w, sigma, alpha, delta, theta, lambda, max_steps, n_options, n_attributes));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type Sigma_belief(Sigma_beliefSEXP);
+    rcpp_result_gen = Rcpp::wrap(rMASC_sampling_cpp(trial_x, w, sigma, alpha, delta, theta, lambda, max_steps, n_options, n_attributes, Sigma_belief));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -65,8 +82,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_masc_generate_attributes_cpp", (DL_FUNC) &_masc_generate_attributes_cpp, 3},
-    {"_masc_rMASC_sampling_cpp", (DL_FUNC) &_masc_rMASC_sampling_cpp, 10},
+    {"_masc_generate_attributes_cpp", (DL_FUNC) &_masc_generate_attributes_cpp, 4},
+    {"_masc_masc_kalman_update_cpp", (DL_FUNC) &_masc_masc_kalman_update_cpp, 5},
+    {"_masc_rMASC_sampling_cpp", (DL_FUNC) &_masc_rMASC_sampling_cpp, 11},
     {"_masc_MASC_SearchRule_myopic_cpp", (DL_FUNC) &_masc_MASC_SearchRule_myopic_cpp, 9},
     {NULL, NULL, 0}
 };

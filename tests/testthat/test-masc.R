@@ -506,3 +506,82 @@ test_that("Full rMASC implementation with myopic search is consistent", {
   )
 })
 
+# ============================================================================
+# MASC-C: multivariate (correlated-attribute) belief update
+# ============================================================================
+
+test_that("Kalman update produces the expected belief spread", {
+  # Sigma=[[1,.7],[.7,1]], sigma_s^2=.5, observe attribute 1 with sample S=2.0,
+  # prior mu=[0,0]. The correlation spreads the update to attribute 2:
+  # mu_new = [4/3, 14/15] = [1.333, 0.933].
+  upd <- masc:::masc_kalman_update_cpp(
+    mu = c(0, 0),
+    Sigma = matrix(c(1, 0.7, 0.7, 1), 2, 2),
+    j = 1, sample = 2.0, sigma_s_sq = 0.5
+  )
+  expect_equal(as.numeric(upd$mu), c(4/3, 14/15), tolerance = 1e-6)
+  # Posterior covariance stays symmetric and positive-definite
+  expect_equal(upd$Sigma, t(upd$Sigma), tolerance = 1e-12)
+  expect_true(all(eigen(upd$Sigma, symmetric = TRUE, only.values = TRUE)$values > 0))
+})
+
+test_that("Kalman update with diagonal Sigma only changes the observed attribute", {
+  # Diagonal covariance => no belief spread (reduces to the univariate update)
+  upd <- masc:::masc_kalman_update_cpp(
+    mu = c(0, 0, 0), Sigma = diag(3), j = 2, sample = 1.5, sigma_s_sq = 1
+  )
+  expect_equal(upd$mu[c(1, 3)], c(0, 0))     # untouched
+  expect_true(upd$mu[2] != 0)                # observed attribute updated
+  expect_equal(upd$Sigma[-2, -2], diag(2))   # off-attribute (co)variances unchanged
+})
+
+test_that("diagonal/zero Sigma_belief reduces exactly to the univariate model", {
+  w <- c(0.5, 0.3, 0.2)
+  set.seed(42); base  <- rMASC(n = 10, w = w)
+  set.seed(42); zero  <- rMASC(n = 10, w = w, Sigma_belief = 0)
+  set.seed(42); ident <- rMASC(n = 10, w = w, Sigma_belief = diag(3))
+  expect_identical(base$results, zero$results)
+  expect_identical(base$raw, zero$raw)
+  expect_identical(base$results, ident$results)
+  expect_identical(base$raw, ident$raw)
+})
+
+test_that("multivariate run preserves the rMASC output structure", {
+  w <- c(0.5, 0.3, 0.2)
+  set.seed(1)
+  res <- rMASC(n = 5, w = w, Sigma_true = 0.6, Sigma_belief = 0.6)
+  expect_named(res, c("results", "weights", "parameters", "raw"))
+  expect_true(all(c("Sigma_true", "Sigma_belief") %in% names(res$parameters)))
+  # fixation proportions still valid
+  expect_equal(res$results$prop_fix_opt1 + res$results$prop_fix_opt2,
+               rep(1, 5), tolerance = 1e-10)
+  fix_seq <- res$raw[[1]]$fix_sequence
+  expect_true(all(fix_seq >= 1) && all(fix_seq <= 6))
+  expect_equal(sum(res$raw[[1]]$prop_fix_att), 1, tolerance = 1e-10)
+})
+
+test_that("positive correlation speeds decisions, negative slows them (belief spread)", {
+  w <- c(0.5, 0.3, 0.2)
+  # Positive: on the same positively-correlated stimuli, MASC-C (matched beliefs)
+  # needs fewer fixations than MASC (independent beliefs).
+  set.seed(7); cpos <- rMASC(n = 300, w = w, Sigma_true = 0.6, Sigma_belief = 0.6)
+  set.seed(7); mpos <- rMASC(n = 300, w = w, Sigma_true = 0.6, Sigma_belief = 0)
+  expect_lt(mean(cpos$results$rt), mean(mpos$results$rt))
+
+  # Negative correlation reverses the advantage: MASC-C is slower than MASC.
+  set.seed(7); cneg <- rMASC(n = 300, w = w, Sigma_true = -0.4, Sigma_belief = -0.4)
+  set.seed(7); mneg <- rMASC(n = 300, w = w, Sigma_true = -0.4, Sigma_belief = 0)
+  expect_gt(mean(cneg$results$rt), mean(mneg$results$rt))
+})
+
+test_that("rMASC validates malformed correlation structures", {
+  expect_error(
+    rMASC(n = 1, n_attributes = 3, w = c(.5,.3,.2), Sigma_belief = matrix(0, 2, 2)),
+    "3 x 3"
+  )
+  expect_error(
+    rMASC(n = 1, n_attributes = 3, w = c(.5,.3,.2), Sigma_true = matrix(0, 2, 2)),
+    "3 x 3"
+  )
+})
+

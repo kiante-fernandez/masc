@@ -13,8 +13,8 @@
 #' }
 #'
 #' @references
-#' Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search
-#' and Choice.
+#' Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
+#' and choice. *Psychological Review*. <https://doi.org/10.1037/rev0000614>
 #'
 #' @docType package
 #' @name masc-package

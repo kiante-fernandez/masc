@@ -18,18 +18,20 @@ NumericVector MASC_SearchRule_myopic_cpp(
     NumericMatrix prec,
     NumericMatrix mu);
 
-NumericMatrix generate_attributes_cpp(int n, int m, double lambda);
+NumericMatrix generate_attributes_cpp(int n, int m, double lambda,
+                                      Rcpp::Nullable<Rcpp::NumericMatrix> Sigma);
 
 List rMASC_sampling_cpp(
     const arma::mat& trial_x,
     const arma::vec& w,
-    double sigma,
+    const arma::vec& sigma,
     double alpha,
     double delta,
     double theta,
     double lambda,
     int max_steps,
     int n_options,
-    int n_attributes);
+    int n_attributes,
+    Rcpp::Nullable<Rcpp::NumericMatrix> Sigma_belief);
 
 #endif

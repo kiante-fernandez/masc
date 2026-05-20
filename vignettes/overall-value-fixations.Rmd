@@ -15,7 +15,10 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(purrr)
 library(patchwork)
 library(masc)
 ```

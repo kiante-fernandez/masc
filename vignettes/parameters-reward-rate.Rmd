@@ -15,7 +15,10 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(purrr)
 library(patchwork)
 library(broom)
 library(masc)
@@ -30,7 +33,7 @@ is random).
 
 ```{r}
 # masc_attr_weights_sampling_noise.R - Creates Figure 8 reproduction from
-# Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+# Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search and choice. Psychological Review.
 
 simulate_parameter_effects <- function(n_trials = 2000) {
   # Parameter ranges
