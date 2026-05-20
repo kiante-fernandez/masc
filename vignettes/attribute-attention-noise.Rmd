@@ -232,15 +232,15 @@ plot_weight_attention_results <- function(results, colors) {
 ```{r}
 # Run the simulation
 set.seed(2025)
-noise_levels <- seq(0.5, 3, by = 0.5)
-weight_diffs <- seq(0, 1, by = 0.05)
+noise_levels <- seq(0.5, 3, length.out = 3)
+weight_diffs <- seq(0, 1, by = 0.25)
 
 # Create color palette
 color_palette <- create_color_palette(noise_levels)
 
 # Run simulation (this may take some time)
 results <- simulate_weight_attention_relationship(
-  n_trials = 1000,
+  n_trials = 30,
   weight_diffs = weight_diffs,
   noise_levels = noise_levels,
   alpha = 10,  # High search sensitivity as in MATLAB
