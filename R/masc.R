@@ -95,7 +95,7 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'
 #' @param data Optional data frame containing trial-wise attribute values. Each row
 #'   represents one trial, and columns should be named following the pattern
-#'   "opt<i>_att<j>" where i is the option number and j is the attribute number.
+#'   `opt<i>_att<j>` where i is the option number and j is the attribute number.
 #'   For example, with 2 options and 3 attributes, columns should be:
 #'   opt1_att1, opt1_att2, opt1_att3, opt2_att1, opt2_att2, opt2_att3.
 #'   If NULL, generates random values for n trials.
@@ -194,7 +194,7 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'
 #' @references
 #' Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-#' and choice. *Psychological Review*. <https://doi.org/10.1037/rev0000614>
+#' and choice. *Psychological Review*. \doi{10.1037/rev0000614}
 #'
 #' @export
 rMASC <- function(data = NULL,

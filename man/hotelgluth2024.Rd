@@ -33,7 +33,7 @@ in a hotel choice experiment with three attributes:
 }
 \source{
 Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-and choice. \emph{Psychological Review}. \url{https://doi.org/10.1037/rev0000614}
+and choice. \emph{Psychological Review}. \doi{10.1037/rev0000614}
 }
 \usage{
 hotelgluth2024
@@ -50,6 +50,6 @@ data and estimated model parameters from the Multi-Attribute Search and Choice (
 }
 \references{
 Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-and choice. \emph{Psychological Review}. \url{https://doi.org/10.1037/rev0000614}
+and choice. \emph{Psychological Review}. \doi{10.1037/rev0000614}
 }
 \keyword{datasets}

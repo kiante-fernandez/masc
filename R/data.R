@@ -36,9 +36,9 @@
 #'
 #' @source
 #' Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-#' and choice. *Psychological Review*. <https://doi.org/10.1037/rev0000614>
+#' and choice. *Psychological Review*. \doi{10.1037/rev0000614}
 #'
 #' @references
 #' Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-#' and choice. *Psychological Review*. <https://doi.org/10.1037/rev0000614>
+#' and choice. *Psychological Review*. \doi{10.1037/rev0000614}
 "hotelgluth2024"
