@@ -1,3 +1,11 @@
+## Resubmission
+
+This is a resubmission. The previous submission was rejected because the
+package check exceeded CRAN's time limit (the vignettes re-built in ~23 min). In
+this version I have reduced the simulation sizes in the vignettes so the whole
+check runs well within the limit, while the vignettes still illustrate the same
+qualitative results.
+
 ## Submission
 
 This is a new submission: the first release of `masc`, version 0.1.0.
