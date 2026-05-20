@@ -397,10 +397,10 @@ plot_time_pressure_results <- function(results) {
 # Run simulation (note: this will take some time to run)
 set.seed(2025)
 results <- simulate_time_pressure_effects(
-  n_trials = 200,          # Number of trials
-  n_subjects = 100,        # Number of subjects
-  threshold_levels = seq(0.001, 0.2, length.out = 10),
-  sensitivity_levels = seq(0, 3, length.out = 5)
+  n_trials = 15,
+  n_subjects = 6,
+  threshold_levels = seq(0.001, 0.2, length.out = 4),
+  sensitivity_levels = seq(0, 3, length.out = 3)
 )
 ```
 

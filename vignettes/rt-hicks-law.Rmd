@@ -288,9 +288,9 @@ plot_hicks_law <- function(results, include_approx_rt = FALSE) {
 # Run simulation (note: this can take a while)
 set.seed(2025)
 results <- simulate_hicks_law(
-  n_trials = 200,          # Reduced for faster execution
-  n_subjects = 100,         # Reduced for faster execution
-  max_options = 20,
+  n_trials = 15,
+  n_subjects = 6,
+  max_options = 8,
   min_options = 2,
   include_approx_rt = FALSE,
   plot_while_running = FALSE

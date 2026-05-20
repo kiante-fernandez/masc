@@ -37,9 +37,9 @@ is random).
 
 simulate_parameter_effects <- function(n_trials = 2000) {
   # Parameter ranges
-  sigmas <- seq(0.1, 3, length.out = 10)
-  deltas <- seq(0.01, 0.1, length.out = 10)
-  alphas <- seq(0, 10, length.out = 10)
+  sigmas <- seq(0.1, 3, length.out = 5)
+  deltas <- seq(0.01, 0.1, length.out = 5)
+  alphas <- seq(0, 10, length.out = 5)
 
   # Generate fixed weights for consistency
   set.seed(2025)
@@ -461,7 +461,7 @@ plot_parameter_effects <- function(results) {
 ```{r}
 # Run simulation (this will take some time)
 set.seed(2025)
-n_trials <- 2000  # Reduced for faster execution
+n_trials <- 300
 results <- simulate_parameter_effects(n_trials)
 ```
 
