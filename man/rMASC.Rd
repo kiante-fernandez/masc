@@ -15,13 +15,15 @@ rMASC(
   delta = 0.01,
   theta = 0.01,
   lambda = 1,
-  max_steps = 100
+  max_steps = 100,
+  Sigma_true = NULL,
+  Sigma_belief = NULL
 )
 }
 \arguments{
 \item{data}{Optional data frame containing trial-wise attribute values. Each row
 represents one trial, and columns should be named following the pattern
-"opt{i}_att{j}" where i is the option number and j is the attribute number.
+"opt\if{html}{\out{<i>}}_att\if{html}{\out{<j>}}" where i is the option number and j is the attribute number.
 For example, with 2 options and 3 attributes, columns should be:
 opt1_att1, opt1_att2, opt1_att3, opt2_att1, opt2_att2, opt2_att3.
 If NULL, generates random values for n trials.}
@@ -39,8 +41,8 @@ randomly generated from beta(3/4, 3/4) distribution (default: NULL).}
 \item{sigma}{Numeric. Standard deviation of sampling noise (default: 1).}
 
 \item{alpha}{Numeric. Controls how strongly fixations follow the myopic search
-rule. Higher values (>10) make search more deterministic, lower values (≈0)
-make it more random (default: 3).}
+rule. Higher values (>10) make search more deterministic, lower values
+(near 0) make it more random (default: 3).}
 
 \item{delta}{Numeric. Amount by which decision threshold increases per fixation
 (default: 0.01).}
@@ -50,6 +52,20 @@ make it more random (default: 3).}
 \item{lambda}{Numeric. Precision of prior beliefs about attributes (default: 1).}
 
 \item{max_steps}{Integer. Maximum number of fixations allowed (default: 100).}
+
+\item{Sigma_true}{Correlation/covariance structure of the generated stimuli
+(an \code{n_attributes} x \code{n_attributes} matrix, or a single number giving a
+uniform off-diagonal correlation). When \code{NULL} (default), attributes are
+independent (identity), reproducing the original MASC behaviour. Ignored
+when \code{data} is supplied (the data are the stimuli).}
+
+\item{Sigma_belief}{The decision maker's assumed correlation structure between
+attributes (matrix or single number). This is what enables the multivariate
+("MASC-C") belief update: observing one attribute spreads information to
+correlated attributes via a Kalman update. \code{NULL} (default) matches
+\code{Sigma_true}; \code{0} forces independent (univariate) beliefs. When the
+resulting matrix is diagonal the model reduces exactly to the original
+univariate MASC update.}
 }
 \value{
 A list containing:
@@ -92,7 +108,7 @@ sequentially sampling information about different attributes until reaching a de
 }
 \examples{
 # Example 1: Generate 5 random trials
-results <- rMASC(n = 5)
+results <- rMASC(n = 5, w = c(0.5, 0.3, 0.2))
 
 # Example 2: Custom attribute values for multiple trials
 trial_data <- data.frame(
@@ -112,8 +128,18 @@ results <- rMASC(
     w = c(0.5, 0.3, 0.2)  # weights for attributes
 )
 
+# Example 3: Correlated attributes (MASC-C). The decision maker exploits a
+# positive correlation structure, so observing one attribute informs beliefs
+# about the others ("belief spread").
+results <- rMASC(
+    n = 20,
+    w = c(0.5, 0.3, 0.2),
+    Sigma_true = 0.6,    # stimuli are positively correlated
+    Sigma_belief = 0.6   # matched beliefs (use 0 for the original MASC model)
+)
+
 }
 \references{
-Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search
-and Choice.
+Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
+and choice. \emph{Psychological Review}. \url{https://doi.org/10.1037/rev0000614}
 }

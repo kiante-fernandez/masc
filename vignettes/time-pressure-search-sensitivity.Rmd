@@ -15,7 +15,10 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(purrr)
 library(patchwork)
 library(masc)
 ```
@@ -28,7 +31,7 @@ most important attribute increases with time pressure.
 
 ```{r}
 # masc_time_pressure_final.R - Creates Figure 10 reproduction from
-# Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search and Choice.
+# Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search and choice. Psychological Review.
 
 # Custom function to generate non-dominated attributes
 generate_valid_attributes <- function(n_options, n_attributes, lambda = 1) {

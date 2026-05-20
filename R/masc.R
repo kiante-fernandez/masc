@@ -39,6 +39,53 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
   return(result)
 }
 
+# ---------------------------------------------------------------------------
+# Internal helpers for correlation/covariance structures (not exported)
+# ---------------------------------------------------------------------------
+
+# Coerce a user-supplied structure to a valid m x m matrix:
+#   NULL            -> identity (when default_identity) else NULL
+#   single number 0 -> identity (independent attributes)
+#   single number r -> equicorrelation matrix (1 on diagonal, r off-diagonal)
+#   matrix          -> used as-is (size-validated)
+# The result is symmetrized and made positive-definite via .masc_ensure_pd().
+.masc_resolve_sigma <- function(Sigma, m, default_identity = TRUE) {
+  if (is.null(Sigma)) {
+    if (default_identity) return(diag(m)) else return(NULL)
+  }
+  if (!is.matrix(Sigma)) {
+    if (length(Sigma) != 1 || !is.numeric(Sigma))
+      stop("Sigma must be a single number or an ", m, " x ", m, " matrix")
+    rho <- Sigma
+    if (rho == 0) return(diag(m))
+    Sigma <- matrix(rho, m, m)
+    diag(Sigma) <- 1
+  }
+  if (nrow(Sigma) != m || ncol(Sigma) != m)
+    stop("Sigma must be an ", m, " x ", m, " matrix")
+  .masc_ensure_pd(Sigma)
+}
+
+# Symmetrize and clamp eigenvalues to keep the matrix positive-definite.
+.masc_ensure_pd <- function(Sigma, eps = 1e-10) {
+  Sigma <- (Sigma + t(Sigma)) / 2
+  eig <- eigen(Sigma, symmetric = TRUE)
+  if (any(eig$values < eps)) {
+    eig$values[eig$values < eps] <- eps
+    Sigma <- eig$vectors %*% diag(eig$values, length(eig$values)) %*% t(eig$vectors)
+    Sigma <- (Sigma + t(Sigma)) / 2
+  }
+  Sigma
+}
+
+.masc_is_identity <- function(M, tol = 1e-10) {
+  is.matrix(M) && nrow(M) == ncol(M) && max(abs(M - diag(nrow(M)))) < tol
+}
+
+.masc_is_diagonal <- function(M, tol = 1e-10) {
+  is.matrix(M) && max(abs(M - diag(diag(M)))) < tol
+}
+
 #' Multi-Attribute Search and Choice (MASC) Model
 #'
 #' @description
@@ -48,7 +95,7 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'
 #' @param data Optional data frame containing trial-wise attribute values. Each row
 #'   represents one trial, and columns should be named following the pattern
-#'   "opt{i}_att{j}" where i is the option number and j is the attribute number.
+#'   "opt<i>_att<j>" where i is the option number and j is the attribute number.
 #'   For example, with 2 options and 3 attributes, columns should be:
 #'   opt1_att1, opt1_att2, opt1_att3, opt2_att1, opt2_att2, opt2_att3.
 #'   If NULL, generates random values for n trials.
@@ -60,13 +107,25 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'   randomly generated from beta(3/4, 3/4) distribution (default: NULL).
 #' @param sigma Numeric. Standard deviation of sampling noise (default: 1).
 #' @param alpha Numeric. Controls how strongly fixations follow the myopic search
-#'   rule. Higher values (>10) make search more deterministic, lower values (≈0)
-#'   make it more random (default: 3).
+#'   rule. Higher values (>10) make search more deterministic, lower values
+#'   (near 0) make it more random (default: 3).
 #' @param delta Numeric. Amount by which decision threshold increases per fixation
 #'   (default: 0.01).
 #' @param theta Numeric. Initial decision threshold (default: 0.01).
 #' @param lambda Numeric. Precision of prior beliefs about attributes (default: 1).
 #' @param max_steps Integer. Maximum number of fixations allowed (default: 100).
+#' @param Sigma_true Correlation/covariance structure of the generated stimuli
+#'   (an `n_attributes` x `n_attributes` matrix, or a single number giving a
+#'   uniform off-diagonal correlation). When `NULL` (default), attributes are
+#'   independent (identity), reproducing the original MASC behaviour. Ignored
+#'   when `data` is supplied (the data are the stimuli).
+#' @param Sigma_belief The decision maker's assumed correlation structure between
+#'   attributes (matrix or single number). This is what enables the multivariate
+#'   ("MASC-C") belief update: observing one attribute spreads information to
+#'   correlated attributes via a Kalman update. `NULL` (default) matches
+#'   `Sigma_true`; `0` forces independent (univariate) beliefs. When the
+#'   resulting matrix is diagonal the model reduces exactly to the original
+#'   univariate MASC update.
 #'
 #' @return A list containing:
 #' \itemize{
@@ -103,7 +162,7 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'
 #' @examples
 #' # Example 1: Generate 5 random trials
-#' results <- rMASC(n = 5)
+#' results <- rMASC(n = 5, w = c(0.5, 0.3, 0.2))
 #'
 #' # Example 2: Custom attribute values for multiple trials
 #' trial_data <- data.frame(
@@ -123,9 +182,19 @@ MASC_SearchRule_myopic <- function(n, m, w, w2, sp, thresh, alpha, prec, mu) {
 #'     w = c(0.5, 0.3, 0.2)  # weights for attributes
 #' )
 #'
+#' # Example 3: Correlated attributes (MASC-C). The decision maker exploits a
+#' # positive correlation structure, so observing one attribute informs beliefs
+#' # about the others ("belief spread").
+#' results <- rMASC(
+#'     n = 20,
+#'     w = c(0.5, 0.3, 0.2),
+#'     Sigma_true = 0.6,    # stimuli are positively correlated
+#'     Sigma_belief = 0.6   # matched beliefs (use 0 for the original MASC model)
+#' )
+#'
 #' @references
-#' Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search
-#' and Choice.
+#' Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
+#' and choice. *Psychological Review*. <https://doi.org/10.1037/rev0000614>
 #'
 #' @export
 rMASC <- function(data = NULL,
@@ -138,7 +207,9 @@ rMASC <- function(data = NULL,
                   delta = 0.01,
                   theta = 0.01,
                   lambda = 1,
-                  max_steps = 100) {
+                  max_steps = 100,
+                  Sigma_true = NULL,
+                  Sigma_belief = NULL) {
   # Validate numeric parameters
   if (sigma <= 0) stop("sigma must be positive")
   if (alpha < 0) stop("alpha must be non-negative")
@@ -179,6 +250,21 @@ rMASC <- function(data = NULL,
   if(abs(sum(w) - 1) > .Machine$double.eps)
     stop("weights must sum to 1")
 
+  # Resolve correlation structures (see .masc_resolve_sigma / .masc_ensure_pd).
+  # Sigma_true governs the generated stimuli; Sigma_belief governs the (possibly
+  # multivariate) belief update. NULL/identity/diagonal reduce to original MASC.
+  Sigma_true <- .masc_resolve_sigma(Sigma_true, n_attributes, default_identity = TRUE)
+  if(is.null(Sigma_belief)) {
+    Sigma_belief <- Sigma_true            # matched beliefs
+  } else {
+    Sigma_belief <- .masc_resolve_sigma(Sigma_belief, n_attributes, default_identity = TRUE)
+  }
+  # Only pass non-trivial structures down to C++ so the default path is byte-identical:
+  # an identity Sigma_true uses the original stimulus draw; a diagonal Sigma_belief
+  # uses the original univariate update.
+  Sigma_true_arg   <- if(.masc_is_identity(Sigma_true)) NULL else Sigma_true
+  Sigma_belief_arg <- if(.masc_is_diagonal(Sigma_belief)) NULL else Sigma_belief
+
   # If data provided, validate column names
   if(!is.null(data)) {
     expected_cols <- outer(1:n_options, 1:n_attributes,
@@ -213,7 +299,8 @@ rMASC <- function(data = NULL,
   # Pre-allocate trial data if not provided
   if(is.null(data)) {
     trial_data <- replicate(n_trials,
-                            generate_attributes_cpp(n_options, n_attributes, lambda),
+                            generate_attributes_cpp(n_options, n_attributes, lambda,
+                                                    Sigma_true_arg),
                             simplify = FALSE)
   }
 
@@ -248,7 +335,8 @@ rMASC <- function(data = NULL,
       lambda = lambda,
       max_steps = max_steps,
       n_options = n_options,
-      n_attributes = n_attributes
+      n_attributes = n_attributes,
+      Sigma_belief = Sigma_belief_arg
     )
 
     # Calculate option values
@@ -299,7 +387,9 @@ rMASC <- function(data = NULL,
       sigma = sigma,
       alpha = alpha,
       delta = delta,
-      theta = theta
+      theta = theta,
+      Sigma_true = Sigma_true,
+      Sigma_belief = Sigma_belief
     ),
     raw = all_trials
   ))

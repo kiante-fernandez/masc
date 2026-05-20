@@ -18,19 +18,19 @@ The main function provided by this package is:
 }
 }
 \references{
-Gluth, S., Deakin, J., & Rieskamp, J. (2024). A Theory of Multi-Attribute Search
-and Choice.
+Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
+and choice. \emph{Psychological Review}. \url{https://doi.org/10.1037/rev0000614}
 }
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/kiantefernandez/masc}
-  \item Report bugs at \url{https://github.com/kiantefernandez/masc/issues}
+  \item \url{https://github.com/kiante-fernandez/masc}
+  \item Report bugs at \url{https://github.com/kiante-fernandez/masc/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Kiante Fernandez \email{kiantefernan@gmail.com} (\href{https://orcid.org/0000-0002-8493-880X}{ORCID})
+\strong{Maintainer}: Kiante Fernandez \email{kiantefernan@gmail.com} (\href{https://orcid.org/0000-0002-8493-880X}{ORCID}) [copyright holder]
 
 }
 \keyword{internal}

@@ -1,12 +1,16 @@
 Package: masc
 Title: Simulate the Multi-Attribute Search and Choice (MASC) Model
-Version: 0.0.0.9001
-Authors@R: 
-    person("Kiante", "Fernandez", , "kiantefernan@gmail.com", role = c("aut", "cre"),
+Version: 0.1.0
+Authors@R:
+    person("Kiante", "Fernandez", , "kiantefernan@gmail.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-8493-880X"))
-Description: Implements functions to simulate multi-attribute decision making using 
-    the MASC model (Gluth, Deakin, & Rieskamp, 2024). Provides tools for simulating 
-    information search, belief updating, and choice behavior in multi-attribute decisions.
+Description: Simulates the Multi-Attribute Search and Choice (MASC) model of
+    Gluth, Deakin and Rieskamp (2026) <doi:10.1037/rev0000614> for
+    multi-attribute decision-making, including sequential information search,
+    Bayesian belief updating, and choice. Beliefs may be treated as univariate
+    (independent attributes), or multivariate over correlated attributes
+    ('MASC-C'), in which observing one attribute updates beliefs about
+    correlated attributes via a Kalman filter.
 License: MIT + file LICENSE
 Imports:
     Rcpp,
@@ -17,13 +21,16 @@ Suggests:
     testthat (>= 3.0.0),
     broom,
     patchwork,
-    tidyverse
+    ggplot2,
+    dplyr,
+    tibble,
+    purrr
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
-URL: https://github.com/kiantefernandez/masc
-BugReports: https://github.com/kiantefernandez/masc/issues
+RoxygenNote: 7.3.3
+URL: https://github.com/kiante-fernandez/masc
+BugReports: https://github.com/kiante-fernandez/masc/issues
 LinkingTo: 
     Rcpp,
     RcppArmadillo
