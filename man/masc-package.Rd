@@ -19,7 +19,7 @@ The main function provided by this package is:
 }
 \references{
 Gluth, S., Deakin, J., & Rieskamp, J. (2026). A theory of multiattribute search
-and choice. \emph{Psychological Review}. \url{https://doi.org/10.1037/rev0000614}
+and choice. \emph{Psychological Review}. \doi{10.1037/rev0000614}
 }
 \seealso{
 Useful links:
