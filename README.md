@@ -11,6 +11,7 @@ status](https://www.r-pkg.org/badges/version/masc)](https://CRAN.R-project.org/p
 downloads](https://cranlogs.r-pkg.org/badges/grand-total/masc)](https://cran.r-project.org/package=masc)
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![R-CMD-check](https://github.com/kiante-fernandez/masc/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/kiante-fernandez/masc/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 ## Overview
